@@ -1,152 +1,1301 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Qualitative Analysis: CWNode Sparse vs Dense Architectures</title>
+    <title>The n_embd Confound — CW-Node Micro Scaling-Law Sweep</title>
+    <meta name="description"
+        content="A twelve-run parameter-matched sweep comparing dense and connection-weighted node transformer architectures at 500K–5M parameters, and the embedding-width confound found in the process.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;0,8..60,700;0,8..60,900;1,8..60,400;1,8..60,500&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
     <style>
+        :root {
+            --paper: #ece8de;
+            --paper-2: #e3ddcd;
+            --ink: #1c1b18;
+            --ink-soft: #3a382f;
+            --muted: #7a7462;
+            --rule: #c9c2ae;
+            --rule-2: #b6ae96;
+            --dense: #23303d;
+            --cw7030: #1f6f64;
+            --cw3070: #9b6b14;
+            --signal: #8b2e2e;
+            --serif: 'Source Serif 4', Georgia, serif;
+            --mono: 'IBM Plex Mono', ui-monospace, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
         body {
-            font-family: 'Georgia', serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 900px;
+            margin: 0;
+            background: var(--paper);
+            background-image:
+                radial-gradient(circle at 1px 1px, rgba(28, 27, 24, 0.05) 1px, transparent 0);
+            background-size: 22px 22px;
+            color: var(--ink);
+            font-family: var(--serif);
+            font-size: 18px;
+            line-height: 1.62;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.001ms !important;
+                transition-duration: 0.001ms !important;
+            }
+        }
+
+        ::selection {
+            background: var(--cw7030);
+            color: var(--paper);
+        }
+
+        a {
+            color: var(--dense);
+            text-decoration-thickness: 1px;
+            text-underline-offset: 2px;
+        }
+
+        a:hover {
+            color: var(--cw7030);
+        }
+
+        .eyebrow {
+            font-family: var(--mono);
+            font-size: 12.5px;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        .wrap {
+            max-width: 800px;
             margin: 0 auto;
-            padding: 40px 20px;
-            background-color: #fdfdfd;
+            padding: 0 28px;
         }
-        h1, h2, h3 {
-            color: #2c3e50;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 10px;
+
+        /* ---------- Header / masthead ---------- */
+        header.masthead {
+            padding: 64px 0 40px;
+            border-bottom: 1px solid var(--rule);
         }
-        .abstract {
-            background-color: #f8f9fa;
-            border-left: 4px solid #007bff;
-            padding: 15px 20px;
-            margin-bottom: 30px;
+
+        header.masthead .top-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 34px;
+        }
+
+        .repo-link {
+            font-family: var(--mono);
+            font-size: 12.5px;
+            letter-spacing: 0.02em;
+            color: var(--muted);
+            text-decoration: none;
+            border-bottom: 1px solid var(--rule-2);
+            padding-bottom: 1px;
+        }
+
+        .repo-link:hover {
+            color: var(--cw7030);
+            border-color: var(--cw7030);
+        }
+
+        h1.title {
+            font-family: var(--serif);
+            font-weight: 700;
+            font-size: clamp(2.3rem, 6vw, 3.4rem);
+            line-height: 1.06;
+            letter-spacing: -0.01em;
+            margin: 0 0 14px;
+        }
+
+        h1.title em {
             font-style: italic;
+            font-weight: 500;
+            color: var(--cw7030);
         }
-        .code-block {
-            background-color: #272822;
-            color: #f8f8f2;
-            padding: 15px;
-            border-radius: 5px;
-            font-family: 'Courier New', Courier, monospace;
+
+        .subtitle {
+            font-size: 1.18rem;
+            color: var(--ink-soft);
+            max-width: 56ch;
+            margin: 0 0 26px;
+            font-weight: 400;
+        }
+
+        .byline {
+            display: flex;
+            gap: 22px;
+            flex-wrap: wrap;
+            font-family: var(--mono);
+            font-size: 12.5px;
+            color: var(--muted);
+            letter-spacing: 0.02em;
+        }
+
+        .byline strong {
+            color: var(--ink-soft);
+            font-weight: 600;
+        }
+
+        /* ---------- Abstract ---------- */
+        .abstract {
+            padding: 40px 0 8px;
+            border-bottom: 1px solid var(--rule);
+        }
+
+        .abstract .eyebrow {
+            margin-bottom: 14px;
+            display: block;
+        }
+
+        .abstract p {
+            font-style: italic;
+            font-size: 1.03rem;
+            color: var(--ink-soft);
+            max-width: 64ch;
+        }
+
+        .abstract .keywords {
+            margin-top: 18px;
+            font-family: var(--mono);
+            font-size: 12px;
+            color: var(--muted);
+            letter-spacing: 0.02em;
+        }
+
+        .abstract .keywords span {
+            border: 1px solid var(--rule-2);
+            border-radius: 2px;
+            padding: 3px 8px;
+            margin: 0 6px 6px 0;
+            display: inline-block;
+        }
+
+        /* ---------- Section layout with margin numerals ---------- */
+        main {
+            padding-bottom: 20px;
+        }
+
+        section.sec {
+            position: relative;
+            padding: 52px 0 8px;
+            border-bottom: 1px solid var(--rule);
+        }
+
+        section.sec:last-of-type {
+            border-bottom: none;
+        }
+
+        .sec-num {
+            font-family: var(--mono);
+            font-size: 13px;
+            color: var(--rule-2);
+            letter-spacing: 0.06em;
+            position: absolute;
+            left: -58px;
+            top: 56px;
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+        }
+
+        h2.sec-title {
+            font-family: var(--serif);
+            font-weight: 700;
+            font-size: 1.66rem;
+            letter-spacing: -0.005em;
+            margin: 0 0 6px;
+        }
+
+        .sec-kicker {
+            font-family: var(--mono);
+            font-size: 12px;
+            color: var(--muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 22px;
+            display: block;
+        }
+
+        h3 {
+            font-family: var(--serif);
+            font-weight: 600;
+            font-size: 1.18rem;
+            margin: 34px 0 10px;
+        }
+
+        p {
+            margin: 0 0 16px;
+            max-width: 66ch;
+        }
+
+        .lede {
+            font-size: 1.06rem;
+            color: var(--ink-soft);
+        }
+
+        sup.fn {
+            font-family: var(--mono);
+            font-size: 0.62em;
+            color: var(--cw7030);
+            cursor: pointer;
+        }
+
+        sup.fn a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        /* ---------- Callout / confound box ---------- */
+        .callout {
+            border: 1px solid var(--signal);
+            background: rgba(139, 46, 46, 0.055);
+            border-radius: 2px;
+            padding: 20px 22px;
+            margin: 22px 0 26px;
+        }
+
+        .callout .callout-label {
+            font-family: var(--mono);
+            font-size: 11.5px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--signal);
+            font-weight: 700;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .callout p {
+            margin-bottom: 0;
+            font-size: 0.98rem;
+        }
+
+        .callout p+p {
+            margin-top: 10px;
+        }
+
+        .note {
+            border-left: 2px solid var(--rule-2);
+            padding: 4px 0 4px 18px;
+            margin: 22px 0;
+            color: var(--ink-soft);
+            font-size: 0.96rem;
+        }
+
+        /* ---------- Data tables ---------- */
+        .table-wrap {
             overflow-x: auto;
-            white-space: pre-wrap;
+            margin: 20px 0 26px;
         }
-        .model-section {
-            margin-bottom: 40px;
-        }
-        .highlight {
-            font-weight: bold;
-            color: #d35400;
-        }
+
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 30px;
+            font-family: var(--mono);
+            font-size: 13.5px;
+            min-width: 560px;
         }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 12px;
+
+        caption {
+            text-align: left;
+            font-family: var(--mono);
+            font-size: 11.5px;
+            color: var(--muted);
+            letter-spacing: 0.04em;
+            margin-bottom: 10px;
+            caption-side: top;
+        }
+
+        th,
+        td {
+            padding: 9px 10px;
+            text-align: right;
+            border-bottom: 1px solid var(--rule);
+            white-space: nowrap;
+        }
+
+        th:first-child,
+        td:first-child {
             text-align: left;
         }
-        th {
-            background-color: #f4f4f4;
+
+        thead th {
+            font-weight: 600;
+            color: var(--muted);
+            font-size: 11.5px;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--ink);
+        }
+
+        tbody tr:hover {
+            background: rgba(28, 27, 24, 0.035);
+        }
+
+        td.win {
+            color: var(--cw7030);
+            font-weight: 600;
+        }
+
+        td.loss {
+            color: var(--ink-soft);
+        }
+
+        .tier-group td:first-child,
+        .tier-group th:first-child {
+            border-left: 2px solid var(--rule);
+        }
+
+        .swatch {
+            display: inline-block;
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            margin-right: 7px;
+            position: relative;
+            top: -1px;
+        }
+
+        /* ---------- Chart panels ---------- */
+        .chart-panel {
+            border: 1px solid var(--rule-2);
+            background: rgba(255, 255, 255, 0.28);
+            border-radius: 3px;
+            padding: 22px 22px 16px;
+            margin: 22px 0 28px;
+        }
+
+        .chart-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+
+        .chart-title {
+            font-family: var(--mono);
+            font-size: 12.5px;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--ink-soft);
+            font-weight: 600;
+        }
+
+        .legend {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            font-family: var(--mono);
+            font-size: 11.5px;
+            color: var(--muted);
+        }
+
+        .legend .item {
+            display: flex;
+            align-items: center;
+        }
+
+        svg.chart {
+            width: 100%;
+            height: auto;
+            display: block;
+            margin-top: 14px;
+        }
+
+        svg.chart text {
+            font-family: var(--mono);
+            fill: var(--muted);
+        }
+
+        .axis-line {
+            stroke: var(--rule-2);
+            stroke-width: 1;
+        }
+
+        .gridline {
+            stroke: var(--rule);
+            stroke-width: 1;
+            stroke-dasharray: 2 3;
+        }
+
+        .chart-foot {
+            font-family: var(--mono);
+            font-size: 11.5px;
+            color: var(--muted);
+            margin-top: 10px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 4px;
+        }
+
+        .tab-btn {
+            font-family: var(--mono);
+            font-size: 12px;
+            letter-spacing: 0.03em;
+            background: transparent;
+            border: 1px solid var(--rule-2);
+            color: var(--ink-soft);
+            padding: 6px 12px;
+            border-radius: 2px;
+            cursor: pointer;
+            transition: background 0.12s, color 0.12s, border-color 0.12s;
+        }
+
+        .tab-btn:hover {
+            border-color: var(--dense);
+        }
+
+        .tab-btn.active {
+            background: var(--ink);
+            color: var(--paper);
+            border-color: var(--ink);
+        }
+
+        .tab-btn:focus-visible {
+            outline: 2px solid var(--cw7030);
+            outline-offset: 2px;
+        }
+
+        /* ---------- Architecture schematic ---------- */
+        .diagram-wrap {
+            margin: 24px 0 30px;
+        }
+
+        .diagram-wrap svg {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .diagram-caption {
+            font-family: var(--mono);
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 10px;
+        }
+
+        /* ---------- Big stat row ---------- */
+        .stat-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1px;
+            background: var(--rule);
+            border: 1px solid var(--rule);
+            margin: 24px 0 30px;
+        }
+
+        .stat {
+            background: var(--paper);
+            padding: 18px 16px;
+        }
+
+        .stat .num {
+            font-family: var(--serif);
+            font-weight: 700;
+            font-size: 1.9rem;
+            line-height: 1;
+            color: var(--ink);
+        }
+
+        .stat .num small {
+            font-family: var(--mono);
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--muted);
+        }
+
+        .stat .label {
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--muted);
+            letter-spacing: 0.03em;
+            margin-top: 6px;
+            text-transform: uppercase;
+        }
+
+        /* ---------- File tree ---------- */
+        .filetree {
+            font-family: var(--mono);
+            font-size: 13px;
+            background: rgba(28, 27, 24, 0.03);
+            border: 1px solid var(--rule);
+            border-radius: 2px;
+            padding: 18px 20px;
+            margin: 20px 0 26px;
+            line-height: 1.9;
+        }
+
+        .filetree .f {
+            color: var(--ink-soft);
+        }
+
+        .filetree .f b {
+            color: var(--ink);
+            font-weight: 600;
+        }
+
+        .filetree .d {
+            color: var(--muted);
+            margin-left: 14px;
+        }
+
+        ul.plain {
+            padding-left: 20px;
+            margin: 0 0 16px;
+        }
+
+        ul.plain li {
+            margin-bottom: 6px;
+        }
+
+        /* ---------- Footnotes / references ---------- */
+        .refs {
+            font-family: var(--mono);
+            font-size: 12.5px;
+            color: var(--ink-soft);
+        }
+
+        .refs ol {
+            padding-left: 20px;
+        }
+
+        .refs li {
+            margin-bottom: 10px;
+        }
+
+        .refs code {
+            background: rgba(28, 27, 24, 0.06);
+            padding: 1px 5px;
+            border-radius: 2px;
+        }
+
+        footer {
+            padding: 46px 0 70px;
+            font-family: var(--mono);
+            font-size: 12px;
+            color: var(--muted);
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        code,
+        .mono {
+            font-family: var(--mono);
+        }
+
+        @media (max-width:720px) {
+            .sec-num {
+                display: none;
+            }
+
+            body {
+                font-size: 16.5px;
+            }
+
+            .wrap {
+                padding: 0 20px;
+            }
         }
     </style>
 </head>
+
 <body>
 
-    <h1>Qualitative Generative Analysis: CWNode Sparse vs. Dense Baselines</h1>
-    <p><strong>Date:</strong> July 12, 2026 | <strong>Dataset:</strong> Tiny Shakespeare</p>
+    <script type="application/json" id="run-data">{"dense_500000":{"arch":"dense","target_params":500000,"actual_params":502272,"n_embd":16,"n_layer":2,"w_ext":480,"d_ext":2,"w_int":0,"d_int":2,"final_val_loss":2.6452035427093508,"final_val_bpc":3.816222033208698,"final_train_loss":1.4680756330490112,"wall_time_s":200.8847665420035,"history":[{"step":1,"val_loss":4.648882055282593,"train_loss":4.727347373962402},{"step":500,"val_loss":2.768821287155151,"train_loss":2.3282723426818848},{"step":1000,"val_loss":2.7638989448547364,"train_loss":2.311774492263794},{"step":1500,"val_loss":2.737395715713501,"train_loss":2.183504104614258},{"step":2000,"val_loss":2.773916006088257,"train_loss":2.2369072437286377},{"step":2500,"val_loss":2.7358617544174195,"train_loss":2.133624792098999},{"step":3000,"val_loss":2.6978334903717043,"train_loss":2.069103479385376},{"step":3500,"val_loss":2.8156801223754884,"train_loss":2.154881000518799},{"step":4000,"val_loss":2.711875867843628,"train_loss":2.003044366836548},{"step":4500,"val_loss":2.6336499452590942,"train_loss":1.971360206604004},{"step":5000,"val_loss":2.726436161994934,"train_loss":1.802292823791504},{"step":5500,"val_loss":2.6104196071624757,"train_loss":1.9549450874328613},{"step":6000,"val_loss":2.622134494781494,"train_loss":1.7241957187652588},{"step":6500,"val_loss":2.635204529762268,"train_loss":1.7159903049468994},{"step":7000,"val_loss":2.5795154571533203,"train_loss":1.8778700828552246},{"step":7500,"val_loss":2.6123623847961426,"train_loss":1.656296730041504},{"step":8000,"val_loss":2.6620632648468017,"train_loss":1.539733648300171},{"step":8500,"val_loss":2.6282142877578734,"train_loss":1.8229305744171143},{"step":9000,"val_loss":2.601137065887451,"train_loss":1.5434385538101196},{"step":9500,"val_loss":2.66455557346344,"train_loss":1.512319803237915},{"step":10000,"val_loss":2.605575609207153,"train_loss":1.6537102460861206},{"step":10500,"val_loss":2.6890289545059205,"train_loss":1.484220266342163},{"step":11000,"val_loss":2.625195860862732,"train_loss":1.6792645454406738},{"step":11500,"val_loss":2.569422125816345,"train_loss":1.768723726272583},{"step":12000,"val_loss":2.6211434841156005,"train_loss":1.7126719951629639},{"step":12500,"val_loss":2.5502434730529786,"train_loss":1.7201552391052246},{"step":13000,"val_loss":2.5956018447875975,"train_loss":1.5196659564971924},{"step":13500,"val_loss":2.5761157751083372,"train_loss":1.7209584712982178},{"step":14000,"val_loss":2.5337064027786256,"train_loss":1.5878384113311768},{"step":14500,"val_loss":2.5996252298355103,"train_loss":1.4704532623291016},{"step":15000,"val_loss":2.6274502754211424,"train_loss":1.387323260307312},{"step":15500,"val_loss":2.5729350090026855,"train_loss":1.4612619876861572},{"step":16000,"val_loss":2.5830632925033568,"train_loss":1.3641964197158813},{"step":16500,"val_loss":2.4744513034820557,"train_loss":1.515753984451294},{"step":17000,"val_loss":2.5809157609939577,"train_loss":1.4059367179870605},{"step":17500,"val_loss":2.5768824577331544,"train_loss":1.644103765487671},{"step":18000,"val_loss":2.658583927154541,"train_loss":1.3776721954345703},{"step":18500,"val_loss":2.597258281707764,"train_loss":1.3950743675231934},{"step":19000,"val_loss":2.5712648391723634,"train_loss":1.5823034048080444},{"step":19500,"val_loss":2.5694921731948854,"train_loss":1.502302646636963},{"step":19531,"val_loss":2.6452035427093508,"train_loss":1.4680756330490112}]},"cw_70_30_500000":{"arch":"cw_70_30","target_params":500000,"actual_params":501754,"n_embd":16,"n_layer":2,"w_ext":399,"d_ext":2,"w_int":65,"d_int":2,"final_val_loss":2.605241060256958,"final_val_bpc":3.7585683579530187,"final_train_loss":1.3703826665878296,"wall_time_s":306.38659704101156,"history":[{"step":1,"val_loss":4.590180397033691,"train_loss":4.724957466125488},{"step":500,"val_loss":2.847820687294006,"train_loss":2.7385377883911133},{"step":1000,"val_loss":2.7752078056335447,"train_loss":2.5614261627197266},{"step":1500,"val_loss":2.8030003547668456,"train_loss":2.3041248321533203},{"step":2000,"val_loss":2.7085747480392457,"train_loss":2.378385543823242},{"step":2500,"val_loss":2.7745906352996825,"train_loss":2.5149950981140137},{"step":3000,"val_loss":2.772513198852539,"train_loss":2.264784097671509},{"step":3500,"val_loss":2.7395638465881347,"train_loss":2.1157302856445312},{"step":4000,"val_loss":2.74210946559906,"train_loss":2.1556220054626465},{"step":4500,"val_loss":2.7394498348236085,"train_loss":2.2587928771972656},{"step":5000,"val_loss":2.644876408576965,"train_loss":1.942191243171692},{"step":5500,"val_loss":2.6936342239379885,"train_loss":2.053842306137085},{"step":6000,"val_loss":2.6846725225448607,"train_loss":1.9107532501220703},{"step":6500,"val_loss":2.593117690086365,"train_loss":1.818995475769043},{"step":7000,"val_loss":2.7114444732666017,"train_loss":1.837506651878357},{"step":7500,"val_loss":2.656504917144775,"train_loss":1.9920297861099243},{"step":8000,"val_loss":2.6212246656417846,"train_loss":1.7834452390670776},{"step":8500,"val_loss":2.679636287689209,"train_loss":1.8816592693328857},{"step":9000,"val_loss":2.6239604234695433,"train_loss":1.7994552850723267},{"step":9500,"val_loss":2.5636817455291747,"train_loss":1.6571807861328125},{"step":10000,"val_loss":2.5444060802459716,"train_loss":1.7687337398529053},{"step":10500,"val_loss":2.6226829528808593,"train_loss":1.3007031679153442},{"step":11000,"val_loss":2.5939454555511476,"train_loss":1.5456857681274414},{"step":11500,"val_loss":2.692628598213196,"train_loss":1.544135332107544},{"step":12000,"val_loss":2.5404699087142943,"train_loss":1.701258659362793},{"step":12500,"val_loss":2.5620851516723633,"train_loss":1.7199149131774902},{"step":13000,"val_loss":2.586250329017639,"train_loss":1.5196568965911865},{"step":13500,"val_loss":2.57542564868927,"train_loss":1.5056840181350708},{"step":14000,"val_loss":2.5845176458358763,"train_loss":1.5389647483825684},{"step":14500,"val_loss":2.6017364501953124,"train_loss":1.4920278787612915},{"step":15000,"val_loss":2.6114283084869383,"train_loss":1.379573941230774},{"step":15500,"val_loss":2.6207423210144043,"train_loss":1.4636989831924438},{"step":16000,"val_loss":2.630685544013977,"train_loss":1.4824166297912598},{"step":16500,"val_loss":2.58931450843811,"train_loss":1.4664443731307983},{"step":17000,"val_loss":2.597722387313843,"train_loss":1.4372000694274902},{"step":17500,"val_loss":2.5647950649261473,"train_loss":1.400662899017334},{"step":18000,"val_loss":2.6376802206039427,"train_loss":1.374186396598816},{"step":18500,"val_loss":2.6594506978988646,"train_loss":1.5069942474365234},{"step":19000,"val_loss":2.545718812942505,"train_loss":1.6045327186584473},{"step":19500,"val_loss":2.69351270198822,"train_loss":1.7588121891021729},{"step":19531,"val_loss":2.605241060256958,"train_loss":1.3703826665878296}]},"cw_30_70_500000":{"arch":"cw_30_70","target_params":500000,"actual_params":494554,"n_embd":16,"n_layer":2,"w_ext":255,"d_ext":2,"w_int":100,"d_int":2,"final_val_loss":2.6540929317474364,"final_val_bpc":3.8290467106904766,"final_train_loss":1.3953347206115723,"wall_time_s":282.8087529159966,"history":[{"step":1,"val_loss":4.598565340042114,"train_loss":4.730024337768555},{"step":500,"val_loss":3.072142815589905,"train_loss":3.01051926612854},{"step":1000,"val_loss":2.9843080282211303,"train_loss":2.9994101524353027},{"step":1500,"val_loss":2.868488001823425,"train_loss":2.6501922607421875},{"step":2000,"val_loss":2.8244068145751955,"train_loss":2.6001951694488525},{"step":2500,"val_loss":2.8047425746917725,"train_loss":2.362607002258301},{"step":3000,"val_loss":2.770815634727478,"train_loss":2.425558090209961},{"step":3500,"val_loss":2.7697959423065184,"train_loss":2.4004950523376465},{"step":4000,"val_loss":2.801027250289917,"train_loss":2.303044319152832},{"step":4500,"val_loss":2.7673844575881956,"train_loss":2.3973939418792725},{"step":5000,"val_loss":2.788697361946106,"train_loss":2.189364433288574},{"step":5500,"val_loss":2.7766599655151367,"train_loss":2.1422476768493652},{"step":6000,"val_loss":2.7267554998397827,"train_loss":2.3537988662719727},{"step":6500,"val_loss":2.668535828590393,"train_loss":2.314767360687256},{"step":7000,"val_loss":2.6913106441497803,"train_loss":2.1614770889282227},{"step":7500,"val_loss":2.662761116027832,"train_loss":2.222707748413086},{"step":8000,"val_loss":2.6996609449386595,"train_loss":1.773276448249817},{"step":8500,"val_loss":2.5946999549865724,"train_loss":1.8514776229858398},{"step":9000,"val_loss":2.681439471244812,"train_loss":1.8585498332977295},{"step":9500,"val_loss":2.6825807809829714,"train_loss":2.0185658931732178},{"step":10000,"val_loss":2.6524534463882445,"train_loss":1.9816341400146484},{"step":10500,"val_loss":2.547597336769104,"train_loss":1.8340950012207031},{"step":11000,"val_loss":2.6109710216522215,"train_loss":1.8048285245895386},{"step":11500,"val_loss":2.5684749364852903,"train_loss":1.8764033317565918},{"step":12000,"val_loss":2.5907361030578615,"train_loss":1.797222375869751},{"step":12500,"val_loss":2.616147756576538,"train_loss":1.8086445331573486},{"step":13000,"val_loss":2.609461045265198,"train_loss":1.7776153087615967},{"step":13500,"val_loss":2.6231712102890015,"train_loss":1.7007158994674683},{"step":14000,"val_loss":2.6080990076065063,"train_loss":2.036853075027466},{"step":14500,"val_loss":2.642168474197388,"train_loss":1.6987109184265137},{"step":15000,"val_loss":2.5908136129379273,"train_loss":1.7111090421676636},{"step":15500,"val_loss":2.62034158706665,"train_loss":1.7324573993682861},{"step":16000,"val_loss":2.5650950193405153,"train_loss":1.6463086605072021},{"step":16500,"val_loss":2.5331684827804564,"train_loss":1.5383517742156982},{"step":17000,"val_loss":2.607906866073608,"train_loss":1.6477313041687012},{"step":17500,"val_loss":2.5655711889266968,"train_loss":1.6793123483657837},{"step":18000,"val_loss":2.563910126686096,"train_loss":1.5632543563842773},{"step":18500,"val_loss":2.5763545513153074,"train_loss":1.7627882957458496},{"step":19000,"val_loss":2.5769229412078856,"train_loss":1.8003451824188232},{"step":19500,"val_loss":2.6638359308242796,"train_loss":1.5119953155517578},{"step":19531,"val_loss":2.6540929317474364,"train_loss":1.3953347206115723}]},"dense_1000000":{"arch":"dense","target_params":1000000,"actual_params":1003136,"n_embd":16,"n_layer":2,"w_ext":688,"d_ext":2,"w_int":0,"d_int":2,"final_val_loss":2.547021222114563,"final_val_bpc":3.6745748861836276,"final_train_loss":1.2423343658447266,"wall_time_s":256.09019095799886,"history":[{"step":1,"val_loss":4.590023803710937,"train_loss":4.726806640625},{"step":500,"val_loss":2.771891379356384,"train_loss":2.613154411315918},{"step":1000,"val_loss":2.6746805906295776,"train_loss":2.191648006439209},{"step":1500,"val_loss":2.6852777719497682,"train_loss":2.3405966758728027},{"step":2000,"val_loss":2.6381422519683837,"train_loss":2.174170732498169},{"step":2500,"val_loss":2.6124622583389283,"train_loss":2.0030879974365234},{"step":3000,"val_loss":2.6009800910949705,"train_loss":2.111074686050415},{"step":3500,"val_loss":2.6623978853225707,"train_loss":1.8272678852081299},{"step":4000,"val_loss":2.5733389616012574,"train_loss":1.977081060409546},{"step":4500,"val_loss":2.6510230779647825,"train_loss":1.75221586227417},{"step":5000,"val_loss":2.548047184944153,"train_loss":1.9939073324203491},{"step":5500,"val_loss":2.5671878337860106,"train_loss":1.5055534839630127},{"step":6000,"val_loss":2.521317481994629,"train_loss":1.821324110031128},{"step":6500,"val_loss":2.606500744819641,"train_loss":1.5264266729354858},{"step":7000,"val_loss":2.530956482887268,"train_loss":1.7079612016677856},{"step":7500,"val_loss":2.542177176475525,"train_loss":1.7654300928115845},{"step":8000,"val_loss":2.4946788787841796,"train_loss":1.3812363147735596},{"step":8500,"val_loss":2.4107451677322387,"train_loss":1.5865691900253296},{"step":9000,"val_loss":2.5740270614624023,"train_loss":1.2345900535583496},{"step":9500,"val_loss":2.55230975151062,"train_loss":1.545973539352417},{"step":10000,"val_loss":2.503379154205322,"train_loss":1.453737735748291},{"step":10500,"val_loss":2.546211910247803,"train_loss":1.5263023376464844},{"step":11000,"val_loss":2.486406397819519,"train_loss":1.6321067810058594},{"step":11500,"val_loss":2.495814657211304,"train_loss":1.6534593105316162},{"step":12000,"val_loss":2.490855646133423,"train_loss":1.5121684074401855},{"step":12500,"val_loss":2.63976194858551,"train_loss":1.4824888706207275},{"step":13000,"val_loss":2.5264388799667357,"train_loss":1.437857985496521},{"step":13500,"val_loss":2.5416577100753783,"train_loss":1.518593430519104},{"step":14000,"val_loss":2.504810929298401,"train_loss":1.2883169651031494},{"step":14500,"val_loss":2.546794080734253,"train_loss":1.5671498775482178},{"step":15000,"val_loss":2.5149312019348145,"train_loss":1.3922066688537598},{"step":15500,"val_loss":2.5994773864746095,"train_loss":1.3146464824676514},{"step":16000,"val_loss":2.512907552719116,"train_loss":1.433190107345581},{"step":16500,"val_loss":2.5623241901397704,"train_loss":1.4767107963562012},{"step":17000,"val_loss":2.5395862817764283,"train_loss":1.221463918685913},{"step":17500,"val_loss":2.566717004776001,"train_loss":1.3495301008224487},{"step":18000,"val_loss":2.49689519405365,"train_loss":1.4698519706726074},{"step":18500,"val_loss":2.47781355381012,"train_loss":1.4019267559051514},{"step":19000,"val_loss":2.5350488662719726,"train_loss":1.1871120929718018},{"step":19500,"val_loss":2.5144428968429566,"train_loss":1.7176556587219238},{"step":19531,"val_loss":2.547021222114563,"train_loss":1.2423343658447266}]},"cw_70_30_1000000":{"arch":"cw_70_30","target_params":1000000,"actual_params":999482,"n_embd":16,"n_layer":2,"w_ext":573,"d_ext":2,"w_int":93,"d_int":2,"final_val_loss":2.6805099964141847,"final_val_bpc":3.8671584788800377,"final_train_loss":1.445860743522644,"wall_time_s":442.6929524580046,"history":[{"step":1,"val_loss":4.635246992111206,"train_loss":4.729400157928467},{"step":500,"val_loss":3.092355155944824,"train_loss":3.0325679779052734},{"step":1000,"val_loss":3.0568180084228516,"train_loss":2.7183961868286133},{"step":1500,"val_loss":2.9043923139572145,"train_loss":2.6612372398376465},{"step":2000,"val_loss":2.8795419454574587,"train_loss":2.4741995334625244},{"step":2500,"val_loss":2.8205456018447874,"train_loss":2.4982900619506836},{"step":3000,"val_loss":2.7590001583099366,"train_loss":2.3226394653320312},{"step":3500,"val_loss":2.799162983894348,"train_loss":2.469132661819458},{"step":4000,"val_loss":2.7676675081253053,"train_loss":2.279142379760742},{"step":4500,"val_loss":2.733308959007263,"train_loss":2.22975492477417},{"step":5000,"val_loss":2.757128286361694,"train_loss":2.4177823066711426},{"step":5500,"val_loss":2.753583383560181,"train_loss":2.3219549655914307},{"step":6000,"val_loss":2.7835249662399293,"train_loss":2.3261001110076904},{"step":6500,"val_loss":2.8166964530944822,"train_loss":2.328536033630371},{"step":7000,"val_loss":2.7589328050613404,"train_loss":2.1798925399780273},{"step":7500,"val_loss":2.821368861198425,"train_loss":2.172787666320801},{"step":8000,"val_loss":2.7185507297515867,"train_loss":2.277118682861328},{"step":8500,"val_loss":2.684096837043762,"train_loss":2.082148313522339},{"step":9000,"val_loss":2.6632955074310303,"train_loss":2.208291530609131},{"step":9500,"val_loss":2.64808669090271,"train_loss":2.1958155632019043},{"step":10000,"val_loss":2.6803909063339235,"train_loss":1.999845266342163},{"step":10500,"val_loss":2.707404136657715,"train_loss":2.00457501411438},{"step":11000,"val_loss":2.733284759521484,"train_loss":1.7268650531768799},{"step":11500,"val_loss":2.644626998901367,"train_loss":1.9362651109695435},{"step":12000,"val_loss":2.622443342208862,"train_loss":1.9071980714797974},{"step":12500,"val_loss":2.6503186225891113,"train_loss":1.7146759033203125},{"step":13000,"val_loss":2.6428674459457397,"train_loss":1.7213633060455322},{"step":13500,"val_loss":2.6390948057174684,"train_loss":1.7587281465530396},{"step":14000,"val_loss":2.659011888504028,"train_loss":1.4860869646072388},{"step":14500,"val_loss":2.7105496406555174,"train_loss":1.626213550567627},{"step":15000,"val_loss":2.6368078231811523,"train_loss":1.628314733505249},{"step":15500,"val_loss":2.6517436027526857,"train_loss":1.874908685684204},{"step":16000,"val_loss":2.5683037996292115,"train_loss":1.7574923038482666},{"step":16500,"val_loss":2.668043327331543,"train_loss":1.5185062885284424},{"step":17000,"val_loss":2.5977641582489013,"train_loss":1.3462083339691162},{"step":17500,"val_loss":2.599511957168579,"train_loss":1.751258373260498},{"step":18000,"val_loss":2.727637839317322,"train_loss":1.89411199092865},{"step":18500,"val_loss":2.727726149559021,"train_loss":1.623401165008545},{"step":19000,"val_loss":2.6340840101242065,"train_loss":1.4822382926940918},{"step":19500,"val_loss":2.6575212240219117,"train_loss":1.5547912120819092},{"step":19531,"val_loss":2.6805099964141847,"train_loss":1.445860743522644}]},"cw_30_70_1000000":{"arch":"cw_30_70","target_params":1000000,"actual_params":997034,"n_embd":16,"n_layer":2,"w_ext":369,"d_ext":2,"w_int":144,"d_int":2,"final_val_loss":2.601996064186096,"final_val_bpc":3.753886818213882,"final_train_loss":1.4859249591827393,"wall_time_s":516.3976651670091,"history":[{"step":1,"val_loss":4.494610071182251,"train_loss":4.7241926193237305},{"step":500,"val_loss":2.89004065990448,"train_loss":2.726670742034912},{"step":1000,"val_loss":2.825097990036011,"train_loss":2.520228385925293},{"step":1500,"val_loss":2.789668416976929,"train_loss":2.3339431285858154},{"step":2000,"val_loss":2.7293296813964845,"train_loss":2.381211757659912},{"step":2500,"val_loss":2.7433910846710203,"train_loss":2.395888566970825},{"step":3000,"val_loss":2.681681823730469,"train_loss":2.2124385833740234},{"step":3500,"val_loss":2.752366876602173,"train_loss":2.309342861175537},{"step":4000,"val_loss":2.7630160331726072,"train_loss":2.3074283599853516},{"step":4500,"val_loss":2.6976369857788085,"train_loss":2.2535886764526367},{"step":5000,"val_loss":2.6921754360198973,"train_loss":2.120999813079834},{"step":5500,"val_loss":2.6676230430603027,"train_loss":2.0593090057373047},{"step":6000,"val_loss":2.689077687263489,"train_loss":2.0896103382110596},{"step":6500,"val_loss":2.6074121952056886,"train_loss":1.9970605373382568},{"step":7000,"val_loss":2.6914942264556885,"train_loss":2.135730028152466},{"step":7500,"val_loss":2.676439881324768,"train_loss":1.7787995338439941},{"step":8000,"val_loss":2.6152893543243407,"train_loss":1.7922531366348267},{"step":8500,"val_loss":2.6565173387527468,"train_loss":1.9004569053649902},{"step":9000,"val_loss":2.6629994392395018,"train_loss":1.9040496349334717},{"step":9500,"val_loss":2.5502624988555906,"train_loss":2.007794141769409},{"step":10000,"val_loss":2.6446998357772826,"train_loss":1.772291660308838},{"step":10500,"val_loss":2.6643288850784304,"train_loss":1.7940382957458496},{"step":11000,"val_loss":2.568033766746521,"train_loss":1.5952247381210327},{"step":11500,"val_loss":2.63001389503479,"train_loss":1.5960156917572021},{"step":12000,"val_loss":2.588383364677429,"train_loss":1.6864126920700073},{"step":12500,"val_loss":2.577995467185974,"train_loss":1.6848459243774414},{"step":13000,"val_loss":2.6824100971221925,"train_loss":1.3946752548217773},{"step":13500,"val_loss":2.562603974342346,"train_loss":1.5885512828826904},{"step":14000,"val_loss":2.6699151515960695,"train_loss":1.6434247493743896},{"step":14500,"val_loss":2.4967674016952515,"train_loss":1.6225273609161377},{"step":15000,"val_loss":2.5946031332015993,"train_loss":1.6426669359207153},{"step":15500,"val_loss":2.588022994995117,"train_loss":1.4748170375823975},{"step":16000,"val_loss":2.5613614320755005,"train_loss":1.6007370948791504},{"step":16500,"val_loss":2.624454307556152,"train_loss":1.5535595417022705},{"step":17000,"val_loss":2.5522703647613527,"train_loss":1.6260923147201538},{"step":17500,"val_loss":2.6230224847793577,"train_loss":1.6938214302062988},{"step":18000,"val_loss":2.6286478996276856,"train_loss":1.5553663969039917},{"step":18500,"val_loss":2.5925671815872193,"train_loss":1.5618492364883423},{"step":19000,"val_loss":2.5611348390579223,"train_loss":1.573482871055603},{"step":19500,"val_loss":2.6604897499084474,"train_loss":1.5001416206359863},{"step":19531,"val_loss":2.601996064186096,"train_loss":1.4859249591827393}]},"dense_3000000":{"arch":"dense","target_params":3000000,"actual_params":3007076,"n_embd":16,"n_layer":3,"w_ext":982,"d_ext":2,"w_int":0,"d_int":2,"final_val_loss":2.5429621934890747,"final_val_bpc":3.668718945714809,"final_train_loss":1.6384450197219849,"wall_time_s":388.30884233299,"history":[{"step":1,"val_loss":4.5747597217559814,"train_loss":4.720204830169678},{"step":500,"val_loss":2.8131420612335205,"train_loss":2.4502573013305664},{"step":1000,"val_loss":2.8156816482543947,"train_loss":2.466622829437256},{"step":1500,"val_loss":2.724099588394165,"train_loss":2.4056386947631836},{"step":2000,"val_loss":2.7912076711654663,"train_loss":2.3307275772094727},{"step":2500,"val_loss":2.711611580848694,"train_loss":2.061497688293457},{"step":3000,"val_loss":2.765426230430603,"train_loss":2.0665054321289062},{"step":3500,"val_loss":2.7325915098190308,"train_loss":2.014451742172241},{"step":4000,"val_loss":2.690216040611267,"train_loss":1.9252490997314453},{"step":4500,"val_loss":2.6774725675582887,"train_loss":1.9940518140792847},{"step":5000,"val_loss":2.6273706674575807,"train_loss":2.114008903503418},{"step":5500,"val_loss":2.557648849487305,"train_loss":1.742356538772583},{"step":6000,"val_loss":2.600932168960571,"train_loss":1.8437085151672363},{"step":6500,"val_loss":2.599424195289612,"train_loss":1.7840542793273926},{"step":7000,"val_loss":2.504501461982727,"train_loss":1.6120288372039795},{"step":7500,"val_loss":2.5801433801651,"train_loss":1.4131325483322144},{"step":8000,"val_loss":2.4771987915039064,"train_loss":1.5762782096862793},{"step":8500,"val_loss":2.554727292060852,"train_loss":1.5822416543960571},{"step":9000,"val_loss":2.6023186922073362,"train_loss":1.748363971710205},{"step":9500,"val_loss":2.6445725679397585,"train_loss":1.8288605213165283},{"step":10000,"val_loss":2.5649986267089844,"train_loss":1.770179033279419},{"step":10500,"val_loss":2.530051255226135,"train_loss":1.6821675300598145},{"step":11000,"val_loss":2.5799968957901003,"train_loss":1.507378339767456},{"step":11500,"val_loss":2.4933163642883303,"train_loss":1.426877737045288},{"step":12000,"val_loss":2.510631036758423,"train_loss":1.8461453914642334},{"step":12500,"val_loss":2.630615735054016,"train_loss":1.712599754333496},{"step":13000,"val_loss":2.6367217302322388,"train_loss":1.579892635345459},{"step":13500,"val_loss":2.5352244853973387,"train_loss":1.5858770608901978},{"step":14000,"val_loss":2.581984615325928,"train_loss":1.5285991430282593},{"step":14500,"val_loss":2.6395737886428834,"train_loss":1.419221043586731},{"step":15000,"val_loss":2.6418489456176757,"train_loss":1.336057424545288},{"step":15500,"val_loss":2.5768622875213625,"train_loss":1.4055453538894653},{"step":16000,"val_loss":2.5400773525238036,"train_loss":1.4360376596450806},{"step":16500,"val_loss":2.636431431770325,"train_loss":1.2781243324279785},{"step":17000,"val_loss":2.66441388130188,"train_loss":1.4934918880462646},{"step":17500,"val_loss":2.571512222290039,"train_loss":1.1947377920150757},{"step":18000,"val_loss":2.5968955755233765,"train_loss":1.340308427810669},{"step":18500,"val_loss":2.5585910081863403,"train_loss":1.5303953886032104},{"step":19000,"val_loss":2.6608194589614866,"train_loss":1.5102027654647827},{"step":19500,"val_loss":2.633657169342041,"train_loss":1.2472798824310303},{"step":19531,"val_loss":2.5429621934890747,"train_loss":1.6384450197219849}]},"cw_70_30_3000000":{"arch":"cw_70_30","target_params":3000000,"actual_params":2996207,"n_embd":16,"n_layer":3,"w_ext":819,"d_ext":2,"w_int":133,"d_int":2,"final_val_loss":2.775571656227112,"final_val_bpc":4.004303464070821,"final_train_loss":1.4717671871185303,"wall_time_s":506.7252715000068,"history":[{"step":1,"val_loss":4.575884628295898,"train_loss":4.731171607971191},{"step":500,"val_loss":3.075659441947937,"train_loss":2.9280309677124023},{"step":1000,"val_loss":2.894033169746399,"train_loss":2.7501559257507324},{"step":1500,"val_loss":3.1325851917266845,"train_loss":3.0045714378356934},{"step":2000,"val_loss":2.840755748748779,"train_loss":2.567789316177368},{"step":2500,"val_loss":2.847349691390991,"train_loss":2.4817676544189453},{"step":3000,"val_loss":2.804796504974365,"train_loss":2.4540929794311523},{"step":3500,"val_loss":2.8248460054397584,"train_loss":2.3658809661865234},{"step":4000,"val_loss":2.809036374092102,"train_loss":2.3828063011169434},{"step":4500,"val_loss":2.7993969202041624,"train_loss":2.3796818256378174},{"step":5000,"val_loss":2.8403796672821047,"train_loss":2.5284934043884277},{"step":5500,"val_loss":2.8217112541198732,"train_loss":2.3588500022888184},{"step":6000,"val_loss":2.761845850944519,"train_loss":2.4408223628997803},{"step":6500,"val_loss":2.7896748542785645,"train_loss":2.2167136669158936},{"step":7000,"val_loss":2.735601282119751,"train_loss":2.3249564170837402},{"step":7500,"val_loss":2.7278424978256224,"train_loss":2.1662509441375732},{"step":8000,"val_loss":2.7343642473220826,"train_loss":2.223267078399658},{"step":8500,"val_loss":2.701613187789917,"train_loss":2.141300916671753},{"step":9000,"val_loss":2.6840572357177734,"train_loss":2.2753407955169678},{"step":9500,"val_loss":2.689392161369324,"train_loss":2.112523078918457},{"step":10000,"val_loss":2.6971521854400633,"train_loss":2.0692148208618164},{"step":10500,"val_loss":2.640006995201111,"train_loss":2.0628390312194824},{"step":11000,"val_loss":2.7448544263839723,"train_loss":2.025122880935669},{"step":11500,"val_loss":2.640647029876709,"train_loss":2.0674796104431152},{"step":12000,"val_loss":2.7720088005065917,"train_loss":1.9914127588272095},{"step":12500,"val_loss":2.646871733665466,"train_loss":1.9147639274597168},{"step":13000,"val_loss":2.6482644081115723,"train_loss":1.9927743673324585},{"step":13500,"val_loss":2.6799505233764647,"train_loss":1.8317153453826904},{"step":14000,"val_loss":2.6866563081741335,"train_loss":1.9929527044296265},{"step":14500,"val_loss":2.6970489025115967,"train_loss":1.9135663509368896},{"step":15000,"val_loss":2.657854199409485,"train_loss":1.7791366577148438},{"step":15500,"val_loss":2.585753870010376,"train_loss":1.6800289154052734},{"step":16000,"val_loss":2.522851300239563,"train_loss":1.8108015060424805},{"step":16500,"val_loss":2.6816168308258055,"train_loss":1.7973192930221558},{"step":17000,"val_loss":2.771159052848816,"train_loss":1.682038426399231},{"step":17500,"val_loss":2.6475815296173097,"train_loss":1.758337140083313},{"step":18000,"val_loss":2.714339542388916,"train_loss":1.5273115634918213},{"step":18500,"val_loss":2.667425513267517,"train_loss":1.621800184249878},{"step":19000,"val_loss":2.672176194190979,"train_loss":1.5354340076446533},{"step":19500,"val_loss":2.7150563955307008,"train_loss":1.615384817123413},{"step":19531,"val_loss":2.775571656227112,"train_loss":1.4717671871185303}]},"cw_30_70_3000000":{"arch":"cw_30_70","target_params":3000000,"actual_params":2984276,"n_embd":16,"n_layer":3,"w_ext":530,"d_ext":2,"w_int":205,"d_int":2,"final_val_loss":2.5917531490325927,"final_val_bpc":3.7391094153176763,"final_train_loss":1.7433383464813232,"wall_time_s":732.7906782500067,"history":[{"step":1,"val_loss":4.467750549316406,"train_loss":4.727570533752441},{"step":500,"val_loss":3.215796160697937,"train_loss":2.9866299629211426},{"step":1000,"val_loss":3.1827171564102175,"train_loss":3.0666587352752686},{"step":1500,"val_loss":3.114766311645508,"train_loss":3.209001064300537},{"step":2000,"val_loss":3.1718908548355103,"train_loss":3.0252833366394043},{"step":2500,"val_loss":3.0387847423553467,"train_loss":2.7161426544189453},{"step":3000,"val_loss":2.9003539800643923,"train_loss":2.551699638366699},{"step":3500,"val_loss":2.818692660331726,"train_loss":2.509798526763916},{"step":4000,"val_loss":2.8108874559402466,"train_loss":2.4165737628936768},{"step":4500,"val_loss":2.7816657066345214,"train_loss":2.362100601196289},{"step":5000,"val_loss":2.81545729637146,"train_loss":2.2613654136657715},{"step":5500,"val_loss":2.799494171142578,"train_loss":2.389347553253174},{"step":6000,"val_loss":2.7761518001556396,"train_loss":2.347897529602051},{"step":6500,"val_loss":2.7608345985412597,"train_loss":2.263979911804199},{"step":7000,"val_loss":2.7856945514678957,"train_loss":2.2821598052978516},{"step":7500,"val_loss":2.8003451585769654,"train_loss":2.343040943145752},{"step":8000,"val_loss":2.7801408529281617,"train_loss":2.3968214988708496},{"step":8500,"val_loss":2.7829864978790284,"train_loss":2.295372486114502},{"step":9000,"val_loss":2.880724549293518,"train_loss":2.3202526569366455},{"step":9500,"val_loss":2.7648340702056884,"train_loss":2.4545886516571045},{"step":10000,"val_loss":2.829624056816101,"train_loss":2.219409465789795},{"step":10500,"val_loss":2.732209348678589,"train_loss":2.3639707565307617},{"step":11000,"val_loss":2.767703986167908,"train_loss":2.427701950073242},{"step":11500,"val_loss":2.780333662033081,"train_loss":2.3058509826660156},{"step":12000,"val_loss":2.7497636795043947,"train_loss":2.2340331077575684},{"step":12500,"val_loss":2.8073105812072754,"train_loss":2.08968448638916},{"step":13000,"val_loss":2.736056113243103,"train_loss":2.0701851844787598},{"step":13500,"val_loss":2.6922988414764406,"train_loss":2.239698648452759},{"step":14000,"val_loss":2.6731266260147093,"train_loss":2.1263926029205322},{"step":14500,"val_loss":2.74668664932251,"train_loss":2.014697790145874},{"step":15000,"val_loss":2.715929555892944,"train_loss":2.231203079223633},{"step":15500,"val_loss":2.6392850637435914,"train_loss":1.9490671157836914},{"step":16000,"val_loss":2.666769814491272,"train_loss":1.8777334690093994},{"step":16500,"val_loss":2.597157597541809,"train_loss":2.11936616897583},{"step":17000,"val_loss":2.701399540901184,"train_loss":1.9037481546401978},{"step":17500,"val_loss":2.645237612724304,"train_loss":1.9340012073516846},{"step":18000,"val_loss":2.596106481552124,"train_loss":1.909670352935791},{"step":18500,"val_loss":2.6280873298645018,"train_loss":2.069053888320923},{"step":19000,"val_loss":2.664700412750244,"train_loss":1.705475091934204},{"step":19500,"val_loss":2.628893733024597,"train_loss":1.7218751907348633},{"step":19531,"val_loss":2.5917531490325927,"train_loss":1.7433383464813232}]},"dense_5000000":{"arch":"dense","target_params":5000000,"actual_params":5007119,"n_embd":16,"n_layer":3,"w_ext":1273,"d_ext":2,"w_int":0,"d_int":2,"final_val_loss":2.5799855947494508,"final_val_bpc":3.7221324231099957,"final_train_loss":1.6533746719360352,"wall_time_s":489.38112033299694,"history":[{"step":1,"val_loss":4.382257652282715,"train_loss":4.717043399810791},{"step":500,"val_loss":2.825874423980713,"train_loss":2.487950086593628},{"step":1000,"val_loss":2.8282537698745727,"train_loss":2.3709826469421387},{"step":1500,"val_loss":2.7878264427185058,"train_loss":2.291710615158081},{"step":2000,"val_loss":2.771907925605774,"train_loss":2.5134851932525635},{"step":2500,"val_loss":2.7032578945159913,"train_loss":2.2706947326660156},{"step":3000,"val_loss":2.766164708137512,"train_loss":2.4190263748168945},{"step":3500,"val_loss":2.667126703262329,"train_loss":2.1209723949432373},{"step":4000,"val_loss":2.704075002670288,"train_loss":2.2170255184173584},{"step":4500,"val_loss":2.701324701309204,"train_loss":1.874561071395874},{"step":5000,"val_loss":2.646824359893799,"train_loss":1.9814096689224243},{"step":5500,"val_loss":2.5917160272598267,"train_loss":1.7435057163238525},{"step":6000,"val_loss":2.737092471122742,"train_loss":2.025374412536621},{"step":6500,"val_loss":2.5689022064208986,"train_loss":1.9193315505981445},{"step":7000,"val_loss":2.57101571559906,"train_loss":1.8035013675689697},{"step":7500,"val_loss":2.5570985317230224,"train_loss":1.886804223060608},{"step":8000,"val_loss":2.5186002016067506,"train_loss":1.5967118740081787},{"step":8500,"val_loss":2.517500948905945,"train_loss":1.7968248128890991},{"step":9000,"val_loss":2.5983500242233277,"train_loss":1.6859238147735596},{"step":9500,"val_loss":2.5639240980148315,"train_loss":1.3705551624298096},{"step":10000,"val_loss":2.5455496072769166,"train_loss":1.4639813899993896},{"step":10500,"val_loss":2.566960096359253,"train_loss":1.3321547508239746},{"step":11000,"val_loss":2.5481019258499145,"train_loss":1.5475009679794312},{"step":11500,"val_loss":2.537534475326538,"train_loss":1.556572675704956},{"step":12000,"val_loss":2.509972596168518,"train_loss":1.1255518198013306},{"step":12500,"val_loss":2.5726540803909304,"train_loss":1.5554478168487549},{"step":13000,"val_loss":2.558522081375122,"train_loss":1.5160657167434692},{"step":13500,"val_loss":2.554719853401184,"train_loss":1.3319628238677979},{"step":14000,"val_loss":2.6234517335891723,"train_loss":1.5967204570770264},{"step":14500,"val_loss":2.5968841791152952,"train_loss":1.5550580024719238},{"step":15000,"val_loss":2.5702476501464844,"train_loss":1.232100009918213},{"step":15500,"val_loss":2.554337239265442,"train_loss":1.4430266618728638},{"step":16000,"val_loss":2.5145153760910035,"train_loss":1.5508992671966553},{"step":16500,"val_loss":2.6030351400375364,"train_loss":1.6358102560043335},{"step":17000,"val_loss":2.565363359451294,"train_loss":1.5808663368225098},{"step":17500,"val_loss":2.506274628639221,"train_loss":1.4159018993377686},{"step":18000,"val_loss":2.5759043455123902,"train_loss":0.850934624671936},{"step":18500,"val_loss":2.5152910232543944,"train_loss":1.4675943851470947},{"step":19000,"val_loss":2.6383497953414916,"train_loss":1.3370959758758545},{"step":19500,"val_loss":2.6555338382720945,"train_loss":1.3587366342544556},{"step":19531,"val_loss":2.5799855947494508,"train_loss":1.6533746719360352}]},"cw_70_30_5000000":{"arch":"cw_70_30","target_params":5000000,"actual_params":4992740,"n_embd":16,"n_layer":3,"w_ext":1062,"d_ext":2,"w_int":173,"d_int":2,"final_val_loss":2.56817045211792,"final_val_bpc":3.7050867754280903,"final_train_loss":1.6556775569915771,"wall_time_s":686.1260471669957,"history":[{"step":1,"val_loss":4.552641677856445,"train_loss":4.732912540435791},{"step":500,"val_loss":2.985094666481018,"train_loss":2.763688564300537},{"step":1000,"val_loss":2.9742798805236816,"train_loss":2.7067675590515137},{"step":1500,"val_loss":2.871778678894043,"train_loss":2.444093704223633},{"step":2000,"val_loss":2.812455654144287,"train_loss":2.604322910308838},{"step":2500,"val_loss":2.782000684738159,"train_loss":2.540797710418701},{"step":3000,"val_loss":2.742206335067749,"train_loss":2.431067705154419},{"step":3500,"val_loss":2.797059154510498,"train_loss":2.3799939155578613},{"step":4000,"val_loss":2.795177388191223,"train_loss":2.301729202270508},{"step":4500,"val_loss":2.7958691358566283,"train_loss":2.4731996059417725},{"step":5000,"val_loss":2.797283387184143,"train_loss":2.341301202774048},{"step":5500,"val_loss":2.7533342599868775,"train_loss":2.25791597366333},{"step":6000,"val_loss":2.7818941831588746,"train_loss":2.284256935119629},{"step":6500,"val_loss":2.7134148120880126,"train_loss":2.1611595153808594},{"step":7000,"val_loss":2.723223876953125,"train_loss":2.2085089683532715},{"step":7500,"val_loss":2.7097652673721315,"train_loss":2.3736701011657715},{"step":8000,"val_loss":2.7243968725204466,"train_loss":2.158998727798462},{"step":8500,"val_loss":2.753045177459717,"train_loss":2.3172733783721924},{"step":9000,"val_loss":2.722015452384949,"train_loss":1.9975812435150146},{"step":9500,"val_loss":2.6096102237701415,"train_loss":2.0208327770233154},{"step":10000,"val_loss":2.613671875,"train_loss":1.9941000938415527},{"step":10500,"val_loss":2.6809470653533936,"train_loss":2.0560226440429688},{"step":11000,"val_loss":2.62328987121582,"train_loss":1.9570181369781494},{"step":11500,"val_loss":2.5830633878707885,"train_loss":1.9053962230682373},{"step":12000,"val_loss":2.6362354516983033,"train_loss":2.019981861114502},{"step":12500,"val_loss":2.5942216396331785,"train_loss":2.018832206726074},{"step":13000,"val_loss":2.6064637660980225,"train_loss":1.9838461875915527},{"step":13500,"val_loss":2.557924723625183,"train_loss":1.7682102918624878},{"step":14000,"val_loss":2.6200370311737062,"train_loss":1.835310935974121},{"step":14500,"val_loss":2.5412225484848023,"train_loss":1.7168405055999756},{"step":15000,"val_loss":2.590065121650696,"train_loss":1.7325928211212158},{"step":15500,"val_loss":2.573207402229309,"train_loss":1.7278082370758057},{"step":16000,"val_loss":2.547089385986328,"train_loss":1.8448898792266846},{"step":16500,"val_loss":2.5623402833938598,"train_loss":1.6420166492462158},{"step":17000,"val_loss":2.588478517532349,"train_loss":1.449601173400879},{"step":17500,"val_loss":2.6015075922012327,"train_loss":1.6392738819122314},{"step":18000,"val_loss":2.6668601036071777,"train_loss":1.5671091079711914},{"step":18500,"val_loss":2.605741500854492,"train_loss":1.6644995212554932},{"step":19000,"val_loss":2.665820860862732,"train_loss":1.8058888912200928},{"step":19500,"val_loss":2.567891526222229,"train_loss":1.3384863138198853},{"step":19531,"val_loss":2.56817045211792,"train_loss":1.6556775569915771}]},"cw_30_70_5000000":{"arch":"cw_30_70","target_params":5000000,"actual_params":4983812,"n_embd":16,"n_layer":3,"w_ext":690,"d_ext":2,"w_int":266,"d_int":2,"final_val_loss":2.7139660596847532,"final_val_bpc":3.9154253754481543,"final_train_loss":1.837486982345581,"wall_time_s":905.8062641660072,"history":[{"step":1,"val_loss":4.589838552474975,"train_loss":4.733627796173096},{"step":500,"val_loss":3.045833206176758,"train_loss":2.843390941619873},{"step":1000,"val_loss":2.9722104549407957,"train_loss":2.690770387649536},{"step":1500,"val_loss":2.854099416732788,"train_loss":2.5730600357055664},{"step":2000,"val_loss":2.7645375967025756,"train_loss":2.59458589553833},{"step":2500,"val_loss":2.797508883476257,"train_loss":2.369985580444336},{"step":3000,"val_loss":2.7181005001068117,"train_loss":2.489312171936035},{"step":3500,"val_loss":2.747999906539917,"train_loss":2.3225607872009277},{"step":4000,"val_loss":2.7594505310058595,"train_loss":2.3793277740478516},{"step":4500,"val_loss":2.7702357292175295,"train_loss":2.353243112564087},{"step":5000,"val_loss":2.7598057270050047,"train_loss":2.3640975952148438},{"step":5500,"val_loss":2.751556372642517,"train_loss":2.3017516136169434},{"step":6000,"val_loss":2.692866086959839,"train_loss":2.3527376651763916},{"step":6500,"val_loss":2.7940925121307374,"train_loss":2.3961520195007324},{"step":7000,"val_loss":2.7477577447891237,"train_loss":2.3111581802368164},{"step":7500,"val_loss":2.7525530576705934,"train_loss":2.4142374992370605},{"step":8000,"val_loss":2.7412802934646607,"train_loss":2.1993918418884277},{"step":8500,"val_loss":2.699693775177002,"train_loss":2.211294174194336},{"step":9000,"val_loss":2.6681698322296143,"train_loss":2.1366336345672607},{"step":9500,"val_loss":2.7464725017547607,"train_loss":2.2216529846191406},{"step":10000,"val_loss":2.7013149738311766,"train_loss":2.1986303329467773},{"step":10500,"val_loss":2.6641030311584473,"train_loss":2.211214065551758},{"step":11000,"val_loss":2.6762864351272584,"train_loss":1.880652666091919},{"step":11500,"val_loss":2.66917507648468,"train_loss":1.6717212200164795},{"step":12000,"val_loss":2.694873833656311,"train_loss":2.037792205810547},{"step":12500,"val_loss":2.691553831100464,"train_loss":1.8452537059783936},{"step":13000,"val_loss":2.613150119781494,"train_loss":1.8551640510559082},{"step":13500,"val_loss":2.6022101640701294,"train_loss":1.9325368404388428},{"step":14000,"val_loss":2.6492624521255492,"train_loss":2.048219680786133},{"step":14500,"val_loss":2.6473037719726564,"train_loss":1.981882095336914},{"step":15000,"val_loss":2.5913752794265745,"train_loss":1.8542100191116333},{"step":15500,"val_loss":2.606501507759094,"train_loss":2.0125532150268555},{"step":16000,"val_loss":2.5885974645614622,"train_loss":1.5469508171081543},{"step":16500,"val_loss":2.6533146142959594,"train_loss":1.4298394918441772},{"step":17000,"val_loss":2.7022456407546995,"train_loss":1.8194876909255981},{"step":17500,"val_loss":2.6995670795440674,"train_loss":1.645340085029602},{"step":18000,"val_loss":2.587414002418518,"train_loss":1.8186416625976562},{"step":18500,"val_loss":2.6929032802581787,"train_loss":1.3800437450408936},{"step":19000,"val_loss":2.703346085548401,"train_loss":1.6692979335784912},{"step":19500,"val_loss":2.6305002689361574,"train_loss":1.499143362045288},{"step":19531,"val_loss":2.7139660596847532,"train_loss":1.837486982345581}]}}
+</script>
 
-    <div class="abstract">
-        <strong>Abstract:</strong> This report presents a manual, LLM-as-a-Judge qualitative analysis of the generative capabilities of two highly sparse CWNode architectures (Model 1: 99/1 split, Model 2: 70/30 split) against a parameter-matched Dense Baseline (Model 3). Using 10 dataset-specific seed prefixes, we evaluated the models mid-training (Step 3,500 for Sparse vs Step 6,000 for Dense) to assess lexical coherence, structural mimicry, and representation collapse. The findings demonstrate that the Sparse models successfully avoid degenerate repetition loops and maintain character variance on par with the Dense baseline, proving the viability of the CWNode bottleneck architecture.
+    <div class="wrap">
+
+        <header class="masthead">
+            <div class="top-row">
+                <span class="eyebrow">CW-Node Research — Micro Scaling-Law Sweep, V1</span>
+                <a class="repo-link" href="https://github.com/mohamedhossammohamed/cw-node-empirical-research"
+                    target="_blank" rel="noopener">github.com/mohamedhossammohamed/cw-node-empirical-research ↗</a>
+            </div>
+            <h1 class="title">The <em>n_embd</em> Confound</h1>
+            <p class="subtitle">A twelve-run, parameter-matched sweep of dense and connection-weighted node transformers
+                from 500K to 5M parameters — and why the sweep can't yet separate a routing effect from an
+                embedding-width bottleneck.</p>
+            <div class="byline">
+                <span><strong>Runs</strong> 12</span>
+                <span><strong>Tiers</strong> 500K · 1M · 3M · 5M params</span>
+                <span><strong>Training tokens</strong> 5,000,000</span>
+                <span><strong>Held-out tokens</strong> 500,000</span>
+                <span><strong>Device</strong> Apple Silicon (mps)</span>
+            </div>
+        </header>
+
+        <section class="abstract">
+            <span class="eyebrow">Abstract</span>
+            <p>CW-Node splits each transformer feed-forward block into two pools: an <em>external</em> pool, a standard
+                dense MLP shared across all channels, and an <em>internal</em> pool, a private small MLP owned by each
+                output channel individually. This sweep asks whether shifting parameter budget from the external pool to
+                the internal one buys parameter efficiency over a dense-only baseline, holding total parameters fixed
+                across four tiers. The dense baseline wins six of eight matched comparisons against the two CW-Node
+                splits. Both CW-Node wins are under 0.04 nats and sit at opposite ends of the parameter range. A
+                structural constraint in this sweep — every configuration is locked to an embedding width of 16 — means
+                the internal pool never has enough per-channel bandwidth to do useful work, so the sweep cannot yet
+                distinguish a real routing disadvantage from an embedding-width bottleneck. Section 5 lays out that
+                argument against the run data directly, and Section 7 specifies the follow-up sweep it implies.</p>
+            <div class="keywords">
+                <span>parameter efficiency</span><span>scaling laws</span><span>feed-forward
+                    routing</span><span>character-level LM</span><span>embedding width</span>
+            </div>
+        </section>
+
+        <main>
+
+            <!-- 1. MECHANISM -->
+            <section class="sec" id="mechanism">
+                <span class="sec-num">01</span>
+                <span class="sec-kicker">Section 1</span>
+                <h2 class="sec-title">What CW-Node changes</h2>
+                <p class="lede">Every architecture in this sweep shares the same skeleton: causal single-head
+                    self-attention with a zero-initialized output projection, followed by a feed-forward block, stacked
+                    two or three times over a 16-dimensional embedding. The difference between the three architectures
+                    compared here is entirely inside that feed-forward block.</p>
+                <p>A standard <strong>dense</strong> block runs one shared MLP — <code>SquareMLP</code> in the codebase
+                    — across the full feature vector at every position: a matrix multiply that mixes all channels
+                    together, the same way a Transformer FFN ordinarily works.</p>
+                <p><strong>CW-Node</strong> splits that block's parameter budget into two pools that run in sequence:
+                </p>
+                <ul class="plain">
+                    <li><strong>External pool</strong> — the same shared dense MLP as the baseline, with width
+                        <code>w_ext</code> and depth <code>d_ext</code>. It produces one output value per channel,
+                        mixing information across channels as usual.</li>
+                    <li><strong>Internal pool</strong> — each of those <code>out_features</code> channels then gets
+                        routed through its <em>own private</em> MLP, with its own weights, width <code>w_int</code>, and
+                        depth <code>d_int</code>. This MLP sees only that one channel's scalar value — no mixing across
+                        channels — and re-expands and contracts it before the block's final output.</li>
+                </ul>
+                <p>The two variants tested, <strong>CW-Node 70/30</strong> and <strong>CW-Node 30/70</strong>, name the
+                    approximate share of the block's feed-forward parameters given to the external pool versus the
+                    internal pool. 70/30 keeps most of the budget in shared, cross-channel mixing; 30/70 moves most of
+                    it into private, per-channel processing.</p>
+                <div id="diagram-holder" class="diagram-wrap"></div>
+                <p class="diagram-caption" id="diagram-caption-text"></p>
+            </section>
+
+            <!-- 2. SETUP -->
+            <section class="sec" id="setup">
+                <span class="sec-num">02</span>
+                <span class="sec-kicker">Section 2</span>
+                <h2 class="sec-title">Sweep configuration</h2>
+                <p>The corpus is a 5,000,000-token character-level split (500,000 held out for validation), vocabulary
+                    size 113<sup class="fn"><a href="#fn1">[1]</a></sup>. Every run trains for exactly 19,531 steps —
+                    one epoch over the training split at block size 64 and batch size 4 — using AdamW at a learning rate
+                    of 3e-3, on an Apple Silicon GPU via the <code>mps</code> backend.</p>
+                <p>Twelve runs cover three architectures at four total-parameter tiers: 500K, 1M, 3M, and 5M. The
+                    parameter solver holds <code>n_embd = 16</code> fixed everywhere and adjusts <code>w_ext</code> /
+                    <code>w_int</code> per run to land each architecture within roughly ±1.5% of its tier's target — the
+                    table in Section 3 reports the actual parameter count achieved for every run, not the target.</p>
+                <div class="stat-row" id="setup-stats"></div>
+                <div class="note">Layer depth changes with tier — 2 layers at 500K and 1M, 3 layers at 3M and 5M —
+                    because the solver adds depth rather than width once width alone can't reach the target within the
+                    embedding constraint below.</div>
+            </section>
+
+            <!-- 3. RESULTS -->
+            <section class="sec" id="results">
+                <span class="sec-num">03</span>
+                <span class="sec-kicker">Section 3</span>
+                <h2 class="sec-title">Final validation loss, all twelve runs</h2>
+                <p class="lede">Lower is better. Delta is CW-Node minus dense at the same tier, in nats; a negative
+                    delta is a CW-Node win.</p>
+                <div class="table-wrap">
+                    <table>
+                        <caption>final_val_loss / final_val_bpc / wall_time_s — read directly from
+                            empirical_results.json</caption>
+                        <thead>
+                            <tr>
+                                <th>Tier</th>
+                                <th>Architecture</th>
+                                <th>Params (actual)</th>
+                                <th>Val loss</th>
+                                <th>Val bpc</th>
+                                <th>Δ vs dense</th>
+                                <th>Wall time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="results-table-body"></tbody>
+                    </table>
+                </div>
+
+                <div class="chart-panel">
+                    <div class="chart-head">
+                        <span class="chart-title">Scaling-law frontier — params vs. validation loss</span>
+                        <div class="legend">
+                            <span class="item"><span class="swatch" style="background:var(--dense)"></span>Dense</span>
+                            <span class="item"><span class="swatch" style="background:var(--cw7030)"></span>CW-Node
+                                70/30</span>
+                            <span class="item"><span class="swatch" style="background:var(--cw3070)"></span>CW-Node
+                                30/70</span>
+                        </div>
+                    </div>
+                    <div id="frontier-chart"></div>
+                    <div class="chart-foot">x-axis: actual total parameters, log scale · y-axis: final validation loss
+                        (nats) · computed live from the 12 run records embedded in this page</div>
+                </div>
+
+                <p>Dense wins six of eight head-to-head comparisons. Both CW-Node wins are narrow and asymmetric: 70/30
+                    beats dense by 0.0400 nats at 500K and 0.0118 nats at 5M — a win at the smallest and largest tiers
+                    tested, with a loss of up to 0.2326 nats in between at 3M. 30/70 loses at every tier, by margins
+                    from 0.0089 to 0.1340 nats. Neither variant shows a monotonic trend with parameter count in either
+                    direction.</p>
+            </section>
+
+            <!-- 4. COST -->
+            <section class="sec" id="cost">
+                <span class="sec-num">04</span>
+                <span class="sec-kicker">Section 4</span>
+                <h2 class="sec-title">Wall-clock cost</h2>
+                <p class="lede">Parameter count is not the only budget that matters. CW-Node's internal pool runs
+                    through a custom chunked autograd function<sup class="fn"><a href="#fn2">[2]</a></sup> rather than a
+                    single batched matrix multiply, and it costs real time on every run in this sweep.</p>
+                <div class="chart-panel">
+                    <div class="chart-head">
+                        <span class="chart-title">Training wall time by architecture and tier</span>
+                    </div>
+                    <div id="walltime-chart"></div>
+                    <div class="chart-foot">bar length is proportional to wall_time_s within each tier group; dense is
+                        always the shortest bar</div>
+                </div>
+                <p>Overhead relative to dense at the same tier ranges from 1.30× to 2.02×, averaging roughly 1.6× across
+                    the sweep, with 30/70 — the split with more internal-pool parameters — consistently the slower of
+                    the two variants. Some of this is an implementation cost rather than an architectural one: the
+                    internal pool's per-channel MLPs are computed with a hand-written chunked forward/backward pass
+                    built to work around an MPS compiler deadlock<sup class="fn"><a href="#fn2">[2]</a></sup>, not a
+                    kernel tuned for throughput. Even so, any efficiency claim for CW-Node has to clear this bar, not
+                    just the parameter-count bar in Section 3.</p>
+            </section>
+
+            <!-- 5. THE CONFOUND -->
+            <section class="sec" id="confound">
+                <span class="sec-num">05</span>
+                <span class="sec-kicker">Section 5</span>
+                <h2 class="sec-title">The <code>n_embd</code> confound</h2>
+                <p class="lede">The comparison in Section 3 is fair on parameter count and unfair on the dimension that
+                    likely matters more for this architecture.</p>
+                <p>The internal pool's per-channel MLP has an input of exactly one scalar — the external pool's output
+                    for that channel — and an output of one scalar. Its capacity to do anything beyond a smooth
+                    reshaping of that single number depends on the intermediate width <code>w_int</code>, which the
+                    solver has to keep small because <code>n_embd</code> is locked at 16 across every run in this sweep.
+                    Both effects compound: a narrow embedding limits how much information reaches the internal pool per
+                    channel in the first place, and a narrow <code>w_int</code> limits what that pool can do with it
+                    once it arrives.</p>
+                <div class="callout">
+                    <span class="callout-label">Why this matters for the results above</span>
+                    <p>A dense baseline saturates a 16-wide embedding easily — its shared matrix multiply mixes all 16
+                        channels directly, so it can extract most of what a 16-dimensional representation has to offer.
+                        CW-Node's internal pool, forced into the same 16-wide space, spends part of its budget on
+                        private per-channel machinery that a starved embedding gives little to work with.</p>
+                    <p>That reading is consistent with the data — dense wins the majority of comparisons and the CW-Node
+                        losses are largest in the middle tiers, where the internal pool has grown but the embedding has
+                        not — but it is a plausible explanation given the constraint, not a claim demonstrated by a
+                        controlled comparison. This sweep never varies <code>n_embd</code>, so it cannot isolate that
+                        variable from parameter allocation directly.</p>
+                </div>
+                <p>The concrete test is to let the solver vary <code>n_embd</code> per architecture under a fixed
+                    total-parameter budget instead of pinning it. At a 3M-parameter budget, for example, a dense model
+                    might land near <code>n_embd = 128</code> while a CW-Node model — spending fewer parameters per unit
+                    of embedding width because its internal pool scales differently — might land near
+                    <code>n_embd = 384</code><sup class="fn"><a href="#fn3">[3]</a></sup>. If CW-Node still loses once
+                    it's allowed a wider embedding, that would be real evidence against the architecture. If it wins,
+                    that would show the internal-routing pathway does have a genuine efficiency advantage — just not one
+                    this sweep's fixed embedding could expose.</p>
+            </section>
+
+            <!-- 6. LEARNING CURVES -->
+            <section class="sec" id="curves">
+                <span class="sec-num">06</span>
+                <span class="sec-kicker">Section 6</span>
+                <h2 class="sec-title">Training curves, by tier</h2>
+                <p class="lede">Final loss hides the shape of training. Select a tier to redraw the three architectures'
+                    validation loss across all 19,531 steps, pulled from the per-step history in each run's record.</p>
+                <div class="chart-panel">
+                    <div class="chart-head">
+                        <span class="chart-title">Validation loss vs. training step</span>
+                        <div class="legend">
+                            <span class="item"><span class="swatch" style="background:var(--dense)"></span>Dense</span>
+                            <span class="item"><span class="swatch" style="background:var(--cw7030)"></span>CW-Node
+                                70/30</span>
+                            <span class="item"><span class="swatch" style="background:var(--cw3070)"></span>CW-Node
+                                30/70</span>
+                        </div>
+                    </div>
+                    <div class="tabs" id="tier-tabs" role="tablist" aria-label="Select parameter tier"></div>
+                    <div id="curve-chart"></div>
+                    <div class="chart-foot" id="curve-foot"></div>
+                </div>
+                <p>Every curve is noisy — a single seed, batch size 4, no smoothing applied — so read the trend, not any
+                    one step. The 3M tier is the clearest illustration of the pattern in Section 3: CW-Node 70/30's
+                    curve sits visibly above dense's for most of training rather than converging toward it, which is
+                    what a 0.23-nat final gap looks like over the full run rather than at just one checkpoint.</p>
+            </section>
+
+            <!-- 7. LIMITATIONS -->
+            <section class="sec" id="limits">
+                <span class="sec-num">07</span>
+                <span class="sec-kicker">Section 7</span>
+                <h2 class="sec-title">Limitations and the V2 sweep</h2>
+                <p>Three limits bound how far these results generalize:</p>
+                <ul class="plain">
+                    <li><strong>Single seed per cell.</strong> Every one of the 12 runs is one training run — no
+                        repeated seeds, no error bars. Differences under roughly 0.03–0.05 nats, including the 500K and
+                        5M "wins" in Section 3, are within a range where seed variance alone could plausibly account for
+                        them.</li>
+                    <li><strong>Character-level, small vocabulary.</strong> A 113-symbol vocabulary and a 5M-token
+                        corpus are a narrow language-modeling regime. Whether the same allocation trade-off holds at
+                        subword-tokenized scale or on larger corpora is untested here.</li>
+                    <li><strong>Wall-clock reflects one implementation.</strong> The overhead numbers in Section 4 are
+                        specific to the current chunked-autograd internal pool, not necessarily to the internal-routing
+                        idea in general.</li>
+                </ul>
+                <p>The next sweep (V2) removes the fixed-<code>n_embd</code> constraint described in Section 5: the
+                    parameter solver varies embedding width per architecture under a fixed total-parameter budget, so
+                    each architecture gets the embedding width its own scaling behavior calls for. That is the direct
+                    test of whether the internal-routing pathway is disadvantaged by design or was simply denied the
+                    representational room to show what it does.</p>
+            </section>
+
+            <!-- 8. REPRO -->
+            <section class="sec" id="repro">
+                <span class="sec-num">08</span>
+                <span class="sec-kicker">Section 8</span>
+                <h2 class="sec-title">Reproduction</h2>
+                <p>Everything in this page is computed from the files below, all present in the repository root.</p>
+                <div class="filetree">
+                    <div class="f"><b>cw_node.py</b> <span class="d">— CWNodeLayer, SquareMLP, and the chunked
+                            internal-node autograd function (Section 1, 4)</span></div>
+                    <div class="f"><b>extract_micro_dataset.py</b> <span class="d">— builds the 5M/500K token split from
+                            the source corpus (Section 2)</span></div>
+                    <div class="f"><b>micro_sweep.py</b> <span class="d">— parameter solver and experiment runner for
+                            all 12 configurations</span></div>
+                    <div class="f"><b>empirical_results.json</b> <span class="d">— full per-step training/validation
+                            history for every run — the source for every chart on this page</span></div>
+                    <div class="f"><b>plot_scaling_laws.py</b> <span class="d">— the repository's own matplotlib
+                            plotting script</span></div>
+                    <div class="f"><b>scaling_law_frontier.png</b>, <b>learning_curves_3M.png</b> <span class="d">—
+                            static renders from plot_scaling_laws.py</span></div>
+                    <div class="f"><b>micro_train.bin</b>, <b>micro_val.bin</b>, <b>meta.json</b> <span class="d">— the
+                            tokenized dataset and character vocabulary</span></div>
+                </div>
+                <p>To rerun: clone the repository, run <code>micro_sweep.py</code> to regenerate
+                    <code>empirical_results.json</code>, then <code>plot_scaling_laws.py</code> for the static figures.
+                    This page reads only <code>empirical_results.json</code> — regenerating that file and reloading this
+                    page is sufficient to refresh every number and chart above.</p>
+            </section>
+
+        </main>
+
+        <section class="sec refs" id="references" style="border-bottom:none;">
+            <span class="sec-num">—</span>
+            <span class="sec-kicker">Notes</span>
+            <ol>
+                <li id="fn1">Vocabulary and tokenizer are defined in <code>meta.json</code> (113 characters, simple
+                    stoi/itos character mapping). Training and validation splits are <code>micro_train.bin</code>
+                    (10,000,000 bytes = 5,000,000 uint16 tokens) and <code>micro_val.bin</code> (1,000,000 bytes =
+                    500,000 tokens).</li>
+                <li id="fn2">See <code>CWNodeAutogradFunction</code> and <code>internal_node_forward</code> in
+                    <code>cw_node.py</code>. The forward pass processes the internal pool in fixed-size chunks (default
+                    128) under <code>torch.no_grad()</code> and recomputes chunk-by-chunk for the backward pass — a
+                    workaround for an MPS graph-compiler deadlock noted in the source, not a throughput-optimized
+                    kernel.</li>
+                <li id="fn3">The <code>n_embd = 128</code> / <code>n_embd = 384</code> figures are the repository's own
+                    illustrative example of what an unconstrained solver might select at a 3M-parameter budget — a
+                    hypothesis motivating the V2 sweep, not a measured result. No run in this dataset varies
+                    <code>n_embd</code>.</li>
+            </ol>
+        </section>
+
+        <footer>
+            <span>CW-Node Micro Scaling-Law Sweep — V1</span>
+            <span>Generated from empirical_results.json, 12/12 runs</span>
+        </footer>
+
     </div>
 
-    <h2>1. Methodology & Model State</h2>
-    <p>The evaluation was conducted without interrupting the active training sweep. We instantiated the models on the CPU and utilized a custom generation script to infer 20 tokens per prompt (temperature = 0.8) without KV-caching. The 10 prompts were strictly sampled from the Tiny Shakespeare dataset format.</p>
-    
-    <table>
-        <tr>
-            <th>Model</th>
-            <th>Architecture</th>
-            <th>Current Step</th>
-            <th>Val Loss (BPC)</th>
-        </tr>
-        <tr>
-            <td>Model 1</td>
-            <td>Sparse CWNode (99% External / 1% Internal)</td>
-            <td>~3,500</td>
-            <td>3.36</td>
-        </tr>
-        <tr>
-            <td>Model 2</td>
-            <td>Sparse CWNode (70% External / 30% Internal)</td>
-            <td>~3,500</td>
-            <td>3.38</td>
-        </tr>
-        <tr>
-            <td>Model 3</td>
-            <td>Dense Baseline (100% External)</td>
-            <td>6,000 (Finished)</td>
-            <td>3.36</td>
-        </tr>
-    </table>
+    <script>
+        (function () {
+            var DATA = JSON.parse(document.getElementById('run-data').textContent);
+            var TIERS = [500000, 1000000, 3000000, 5000000];
+            var ARCHS = ['dense', 'cw_70_30', 'cw_30_70'];
+            var COLOR = { dense: '#23303d', cw_70_30: '#1f6f64', cw_30_70: '#9b6b14' };
+            var LABEL = { dense: 'Dense', cw_70_30: 'CW-Node 70/30', cw_30_70: 'CW-Node 30/70' };
 
-    <h2>2. Raw Generative Exhibits</h2>
-    <p>Because the models are operating at a Bits-Per-Character (BPC) of ~4.8, they have primarily learned basic character distributions and spacing, not complete vocabulary words. The raw 20-token completions are presented below.</p>
+            function fmtParams(n) {
+                if (n >= 1000000) return (n / 1000000).toFixed(2).replace(/\.?0+$/, '') + 'M';
+                return Math.round(n / 1000) + 'K';
+            }
+            function fmtTier(t) {
+                if (t >= 1000000) return (t / 1000000) + 'M';
+                return (t / 1000) + 'K';
+            }
+            function get(arch, tier) { return DATA[arch + '_' + tier]; }
 
-    <div class="model-section">
-        <h3>Model 1 (99/1 Sparse) - Step 3,500</h3>
-        <div class="code-block">
-[1/10] ROMEO:\ndnnlmRswsOeChyetYTee
-[2/10] JULIET:\n\n cy!Kc  seihail\nhw\n
-[4/10] First Citizen:\nE Ih s'w,rdRdgnnyier
-[6/10] The ' lsuzn  lhti d Th n
-[7/10] What hn ro'g  TaLmENeRl s
-        </div>
-    </div>
+            var svgNS = 'http://www.w3.org/2000/svg';
+            function el(tag, attrs) {
+                var e = document.createElementNS(svgNS, tag);
+                for (var k in attrs) { e.setAttribute(k, attrs[k]); }
+                return e;
+            }
 
-    <div class="model-section">
-        <h3>Model 2 (70/30 Sparse) - Step 3,500</h3>
-        <div class="code-block">
-[1/10] ROMEO:\nt rstony k t h\netyiy
-[2/10] JULIET:\noPrP,t .n  slsrhtese
-[4/10] First Citizen:\n:o a, ,itiftrte aaou
-[6/10] The \n ldhiosstr orhe td 
-[7/10] What  \nliI  toht e en   t
-        </div>
-    </div>
+            /* ---------------- Section 1: architecture schematic ---------------- */
+            function buildDiagram() {
+                var holder = document.getElementById('diagram-holder');
+                var W = 680, H = 230;
+                var svg = el('svg', { viewBox: '0 0 ' + W + ' ' + H, class: 'chart' });
 
-    <div class="model-section">
-        <h3>Model 3 (Dense Baseline) - Step 6,000</h3>
-        <div class="code-block">
-[1/10] ROMEO:\ni,khna hifee ls,ahaa
-[2/10] JULIET:\nenut h orhi;soheEaf 
-[4/10] First Citizen:\nrKOsh d\nals tWv hefn
-[6/10] The  Riumeote    rttwhfa
-[7/10] What eoo s'We rhe\nni eeo,
-        </div>
-    </div>
+                // shared input row
+                svg.appendChild(el('text', { x: 20, y: 22, 'font-size': 11 })).textContent = 'block input, C channels';
+                for (var i = 0; i < 6; i++) {
+                    var x = 20 + i * 22;
+                    svg.appendChild(el('rect', { x: x, y: 30, width: 16, height: 16, fill: 'none', stroke: 'var(--rule-2)' }));
+                }
 
-    <h2>3. Deep Analytical Findings</h2>
+                // external pool box
+                var extBox = el('rect', { x: 20, y: 76, width: 250, height: 60, fill: 'rgba(31,111,100,0.08)', stroke: COLOR.cw_70_30, 'stroke-width': 1.2, rx: 2 });
+                svg.appendChild(extBox);
+                var t1 = el('text', { x: 32, y: 98, 'font-size': 12.5, 'font-weight': 600, fill: COLOR.cw_70_30 }); t1.textContent = 'External pool';
+                svg.appendChild(t1);
+                var t2 = el('text', { x: 32, y: 116, 'font-size': 10.5 }); t2.textContent = 'shared dense MLP · w_ext, d_ext · mixes all channels';
+                svg.appendChild(t2);
+                var t3 = el('text', { x: 32, y: 130, 'font-size': 10.5 }); t3.textContent = 'one output value per channel';
+                svg.appendChild(t3);
 
-    <h3>A. Representation Collapse & Repetition Penalty (Passed)</h3>
-    <p>A critical risk of highly sparse networks (like Model 1's extreme 99% bottleneck) is <span class="highlight">Representation Collapse</span>, where the network loses the capacity to generate diverse tokens and falls into infinite loops (e.g., outputting "aaaaaa" or endless spaces). <strong>All CWNode architectures successfully avoided this.</strong> Model 1 and Model 2 output highly diverse character sequences with proper entropy, perfectly matching the Dense baseline's variance.</p>
+                // internal pool box, per-channel lanes
+                var intBox = el('rect', { x: 300, y: 76, width: 360, height: 120, fill: 'rgba(155,107,20,0.07)', stroke: COLOR.cw_30_70, 'stroke-width': 1.2, rx: 2 });
+                svg.appendChild(intBox);
+                var t4 = el('text', { x: 312, y: 98, 'font-size': 12.5, 'font-weight': 600, fill: COLOR.cw_30_70 }); t4.textContent = 'Internal pool — one private MLP per channel';
+                svg.appendChild(t4);
+                var lanesY = 112;
+                for (var c = 0; c < 6; c++) {
+                    var lx = 312 + c * 54;
+                    svg.appendChild(el('rect', { x: lx, y: lanesY, width: 40, height: 30, fill: 'none', stroke: COLOR.cw_30_70, 'stroke-dasharray': '2 2' }));
+                    var lt = el('text', { x: lx + 20, y: lanesY + 19, 'font-size': 9.5, 'text-anchor': 'middle', fill: 'var(--muted)' });
+                    lt.textContent = 'w_int';
+                    svg.appendChild(lt);
+                }
+                var t5 = el('text', { x: 312, y: 180, 'font-size': 10.5 }); t5.textContent = 'each lane: scalar in → own weights, depth d_int → scalar out';
+                svg.appendChild(t5);
 
-    <h3>B. Lexical Coherence & Consonant Grouping</h3>
-    <p>While all models are generating pseudo-gibberish (expected at BPC 4.8), there are distinct qualitative differences in their character-level grammar:</p>
-    <ul>
-        <li><strong>Model 3 (Dense):</strong> Having an advantage of 2,500 additional training steps, Model 3 is generating slightly more frequent valid English bigrams (e.g., <code>"th"</code>, <code>"en"</code>, <code>"or"</code>).</li>
-        <li><strong>Model 2 (70/30):</strong> Demonstrates superior structural mimicry over Model 1. Model 2 groups consonants together much more naturally (e.g., <code>"slsrhtese"</code>, <code>"itiftrte"</code>) and respects lowercase continuation after the prompt.</li>
-        <li><strong>Model 1 (99/1):</strong> Struggles with case-sensitivity. It frequently injects random capital letters into the middle of its sequences (e.g., <code>"TaLmENeRl s"</code>, <code>"HoNN eet"</code>). This indicates that the extreme 1% internal depth is slightly impeding its ability to learn the long-range dependency that capitalization should only follow periods or newlines.</li>
-    </ul>
+                // arrows
+                function arrow(x1, y1, x2, y2) {
+                    svg.appendChild(el('line', { x1: x1, y1: y1, x2: x2, y2: y2, stroke: 'var(--ink-soft)', 'stroke-width': 1.1, 'marker-end': 'url(#arrow)' }));
+                }
+                var defs = el('defs', {});
+                var marker = el('marker', { id: 'arrow', markerWidth: 8, markerHeight: 8, refX: 6, refY: 3, orient: 'auto' });
+                marker.appendChild(el('path', { d: 'M0,0 L6,3 L0,6 Z', fill: 'var(--ink-soft)' }));
+                defs.appendChild(marker);
+                svg.appendChild(defs);
+                arrow(128, 50, 128, 74);
+                arrow(270, 106, 298, 106);
 
-    <h2>4. Conclusion</h2>
-    <p>The CWNode sparse architectures possess the required representational capacity to model complex character distributions without succumbing to degenerate loops or memory collapse. While the extreme 99/1 bottleneck (Model 1) shows slight instability with case-formatting compared to the balanced 70/30 bottleneck (Model 2), both models are securely converging. As they continue to train towards Step 6,000 to match the Dense baseline, we expect their lexical coherence to fully synthesize.</p>
+                // output row
+                var outLabel = el('text', { x: 300, y: 214, 'font-size': 11 }); outLabel.textContent = 'block output, C channels — external output + internal output';
+                svg.appendChild(outLabel);
+                arrow(478, 196, 478, 210);
 
+                holder.appendChild(svg);
+
+                document.getElementById('diagram-caption-text').textContent =
+                    '"70/30" and "30/70" name the approximate share of the block\u2019s feed-forward parameters given to the external pool vs. the internal pool \u2014 read directly from w_ext/d_ext and w_int/d_int in each run\u2019s config.';
+            }
+
+            /* ---------------- Section 2: setup stats ---------------- */
+            function buildSetupStats() {
+                var holder = document.getElementById('setup-stats');
+                var stats = [
+                    { num: '12', label: 'total runs' },
+                    { num: '3', label: 'architectures' },
+                    { num: '4', label: 'parameter tiers' },
+                    { num: '16', label: 'n_embd, fixed' },
+                    { num: '19,531', label: 'steps / run' },
+                    { num: '3e-3', label: 'AdamW lr' }
+                ];
+                stats.forEach(function (s) {
+                    var d = document.createElement('div'); d.className = 'stat';
+                    var n = document.createElement('div'); n.className = 'num'; n.textContent = s.num;
+                    var l = document.createElement('div'); l.className = 'label'; l.textContent = s.label;
+                    d.appendChild(n); d.appendChild(l);
+                    holder.appendChild(d);
+                });
+            }
+
+            /* ---------------- Section 3: results table ---------------- */
+            function buildResultsTable() {
+                var tbody = document.getElementById('results-table-body');
+                TIERS.forEach(function (tier, ti) {
+                    var denseRun = get('dense', tier);
+                    ARCHS.forEach(function (arch, ai) {
+                        var r = get(arch, tier);
+                        var tr = document.createElement('tr');
+                        if (ai === 0) tr.className = 'tier-group';
+                        var delta = arch === 'dense' ? 0 : (r.final_val_loss - denseRun.final_val_loss);
+
+                        var tdTier = document.createElement('td');
+                        tdTier.textContent = ai === 0 ? fmtTier(tier) : '';
+                        tr.appendChild(tdTier);
+
+                        var tdArch = document.createElement('td'); tdArch.style.textAlign = 'left';
+                        var sw = document.createElement('span'); sw.className = 'swatch'; sw.style.background = COLOR[arch];
+                        tdArch.appendChild(sw);
+                        tdArch.appendChild(document.createTextNode(LABEL[arch]));
+                        tr.appendChild(tdArch);
+
+                        var tdParams = document.createElement('td'); tdParams.textContent = r.actual_params.toLocaleString();
+                        tr.appendChild(tdParams);
+
+                        var tdLoss = document.createElement('td'); tdLoss.textContent = r.final_val_loss.toFixed(4);
+                        tr.appendChild(tdLoss);
+
+                        var tdBpc = document.createElement('td'); tdBpc.textContent = r.final_val_bpc.toFixed(4);
+                        tr.appendChild(tdBpc);
+
+                        var tdDelta = document.createElement('td');
+                        if (arch === 'dense') {
+                            tdDelta.textContent = '\u2014';
+                        } else {
+                            tdDelta.textContent = (delta < 0 ? '' : '+') + delta.toFixed(4);
+                            tdDelta.className = delta < 0 ? 'win' : 'loss';
+                        }
+                        tr.appendChild(tdDelta);
+
+                        var tdWall = document.createElement('td'); tdWall.textContent = r.wall_time_s.toFixed(1) + 's';
+                        tr.appendChild(tdWall);
+
+                        tbody.appendChild(tr);
+                    });
+                });
+            }
+
+            /* ---------------- Section 3: frontier chart ---------------- */
+            function buildFrontierChart() {
+                var holder = document.getElementById('frontier-chart');
+                var W = 700, H = 380, ML = 56, MR = 24, MT = 20, MB = 40;
+                var plotW = W - ML - MR, plotH = H - MT - MB;
+
+                var allParams = [], allLoss = [];
+                ARCHS.forEach(function (a) { TIERS.forEach(function (t) { var r = get(a, t); allParams.push(r.actual_params); allLoss.push(r.final_val_loss); }); });
+                var logMin = Math.log10(Math.min.apply(null, allParams)) - 0.03;
+                var logMax = Math.log10(Math.max.apply(null, allParams)) + 0.03;
+                var lossMin = Math.min.apply(null, allLoss) - 0.03;
+                var lossMax = Math.max.apply(null, allLoss) + 0.03;
+
+                function X(p) { return ML + (Math.log10(p) - logMin) / (logMax - logMin) * plotW; }
+                function Y(l) { return MT + (1 - (l - lossMin) / (lossMax - lossMin)) * plotH; }
+
+                var svg = el('svg', { viewBox: '0 0 ' + W + ' ' + H, class: 'chart' });
+
+                // gridlines + y ticks
+                var yTicks = 5;
+                for (var i = 0; i <= yTicks; i++) {
+                    var lv = lossMin + (lossMax - lossMin) * i / yTicks;
+                    var y = Y(lv);
+                    svg.appendChild(el('line', { x1: ML, y1: y, x2: W - MR, y2: y, class: 'gridline' }));
+                    var t = el('text', { x: ML - 8, y: y + 4, 'font-size': 10.5, 'text-anchor': 'end' }); t.textContent = lv.toFixed(2);
+                    svg.appendChild(t);
+                }
+                // x ticks at each tier's actual dense param count (approx)
+                TIERS.forEach(function (tier) {
+                    var r = get('dense', tier);
+                    var x = X(r.actual_params);
+                    var t = el('text', { x: x, y: H - MB + 22, 'font-size': 10.5, 'text-anchor': 'middle' }); t.textContent = fmtTier(tier);
+                    svg.appendChild(t);
+                });
+                var xlab = el('text', { x: ML + plotW / 2, y: H - 6, 'font-size': 10.5, 'text-anchor': 'middle' }); xlab.textContent = 'total parameters (log scale)';
+                svg.appendChild(xlab);
+
+                svg.appendChild(el('line', { x1: ML, y1: MT, x2: ML, y2: H - MB, class: 'axis-line' }));
+                svg.appendChild(el('line', { x1: ML, y1: H - MB, x2: W - MR, y2: H - MB, class: 'axis-line' }));
+
+                ARCHS.forEach(function (arch) {
+                    var pts = TIERS.map(function (t) { var r = get(arch, t); return [X(r.actual_params), Y(r.final_val_loss)]; });
+                    var d = 'M' + pts.map(function (p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' L');
+                    svg.appendChild(el('path', { d: d, fill: 'none', stroke: COLOR[arch], 'stroke-width': 2 }));
+                    pts.forEach(function (p, idx) {
+                        svg.appendChild(el('circle', { cx: p[0], cy: p[1], r: 4, fill: COLOR[arch], stroke: 'var(--paper)', 'stroke-width': 1.5 }));
+                    });
+                });
+
+                holder.appendChild(svg);
+            }
+
+            /* ---------------- Section 4: wall time bars ---------------- */
+            function buildWalltimeChart() {
+                var holder = document.getElementById('walltime-chart');
+                var maxTime = 0;
+                ARCHS.forEach(function (a) { TIERS.forEach(function (t) { maxTime = Math.max(maxTime, get(a, t).wall_time_s); }); });
+
+                var container = document.createElement('div');
+                TIERS.forEach(function (tier) {
+                    var group = document.createElement('div');
+                    group.style.marginBottom = '16px';
+                    var label = document.createElement('div');
+                    label.className = 'mono';
+                    label.style.fontSize = '11.5px';
+                    label.style.color = 'var(--muted)';
+                    label.style.marginBottom = '5px';
+                    label.textContent = fmtTier(tier) + ' PARAMETER TIER';
+                    group.appendChild(label);
+                    ARCHS.forEach(function (arch) {
+                        var r = get(arch, tier);
+                        var row = document.createElement('div');
+                        row.style.display = 'flex';
+                        row.style.alignItems = 'center';
+                        row.style.gap = '10px';
+                        row.style.marginBottom = '4px';
+
+                        var name = document.createElement('div');
+                        name.style.width = '120px';
+                        name.style.fontFamily = 'var(--mono)';
+                        name.style.fontSize = '11.5px';
+                        name.style.color = 'var(--ink-soft)';
+                        name.textContent = LABEL[arch];
+
+                        var barWrap = document.createElement('div');
+                        barWrap.style.flex = '1';
+                        barWrap.style.background = 'rgba(28,27,24,0.06)';
+                        barWrap.style.height = '14px';
+                        barWrap.style.position = 'relative';
+
+                        var bar = document.createElement('div');
+                        var pct = (r.wall_time_s / maxTime) * 100;
+                        bar.style.width = pct + '%';
+                        bar.style.height = '100%';
+                        bar.style.background = COLOR[arch];
+
+                        barWrap.appendChild(bar);
+
+                        var val = document.createElement('div');
+                        val.style.width = '64px';
+                        val.style.fontFamily = 'var(--mono)';
+                        val.style.fontSize = '11.5px';
+                        val.style.textAlign = 'right';
+                        val.style.color = 'var(--ink-soft)';
+                        val.textContent = r.wall_time_s.toFixed(0) + 's';
+
+                        row.appendChild(name);
+                        row.appendChild(barWrap);
+                        row.appendChild(val);
+                        group.appendChild(row);
+                    });
+                    container.appendChild(group);
+                });
+                holder.appendChild(container);
+            }
+
+            /* ---------------- Section 6: learning curves with tier tabs ---------------- */
+            function buildCurveChart() {
+                var tabsHolder = document.getElementById('tier-tabs');
+                var chartHolder = document.getElementById('curve-chart');
+                var footHolder = document.getElementById('curve-foot');
+
+                function render(tier) {
+                    chartHolder.innerHTML = '';
+                    var W = 700, H = 340, ML = 56, MR = 24, MT = 16, MB = 36;
+                    var plotW = W - ML - MR, plotH = H - MT - MB;
+
+                    var series = ARCHS.map(function (a) { return { arch: a, hist: get(a, tier).history }; });
+                    var allSteps = series[0].hist.map(function (h) { return h.step; });
+                    var allLoss = [];
+                    series.forEach(function (s) { s.hist.forEach(function (h) { allLoss.push(h.val_loss); }); });
+                    var stepMax = Math.max.apply(null, allSteps);
+                    var lossMin = Math.min.apply(null, allLoss) - 0.08;
+                    var lossMax = Math.max.apply(null, allLoss) + 0.08;
+
+                    function X(s) { return ML + (s / stepMax) * plotW; }
+                    function Y(l) { return MT + (1 - (l - lossMin) / (lossMax - lossMin)) * plotH; }
+
+                    var svg = el('svg', { viewBox: '0 0 ' + W + ' ' + H, class: 'chart' });
+
+                    var yTicks = 5;
+                    for (var i = 0; i <= yTicks; i++) {
+                        var lv = lossMin + (lossMax - lossMin) * i / yTicks;
+                        var y = Y(lv);
+                        svg.appendChild(el('line', { x1: ML, y1: y, x2: W - MR, y2: y, class: 'gridline' }));
+                        var t = el('text', { x: ML - 8, y: y + 4, 'font-size': 10.5, 'text-anchor': 'end' }); t.textContent = lv.toFixed(2);
+                        svg.appendChild(t);
+                    }
+                    var xTicks = [0, 5000, 10000, 15000, 19531];
+                    xTicks.forEach(function (xs) {
+                        var x = X(xs);
+                        var t = el('text', { x: x, y: H - MB + 20, 'font-size': 10.5, 'text-anchor': 'middle' }); t.textContent = xs.toLocaleString();
+                        svg.appendChild(t);
+                    });
+                    var xlab = el('text', { x: ML + plotW / 2, y: H - 4, 'font-size': 10.5, 'text-anchor': 'middle' }); xlab.textContent = 'training step';
+                    svg.appendChild(xlab);
+
+                    svg.appendChild(el('line', { x1: ML, y1: MT, x2: ML, y2: H - MB, class: 'axis-line' }));
+                    svg.appendChild(el('line', { x1: ML, y1: H - MB, x2: W - MR, y2: H - MB, class: 'axis-line' }));
+
+                    series.forEach(function (s) {
+                        var pts = s.hist.map(function (h) { return [X(h.step), Y(h.val_loss)]; });
+                        var d = 'M' + pts.map(function (p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' L');
+                        svg.appendChild(el('path', { d: d, fill: 'none', stroke: COLOR[s.arch], 'stroke-width': 1.6, opacity: 0.92 }));
+                        var last = pts[pts.length - 1];
+                        svg.appendChild(el('circle', { cx: last[0], cy: last[1], r: 3.5, fill: COLOR[s.arch] }));
+                    });
+
+                    chartHolder.appendChild(svg);
+
+                    var d0 = get('dense', tier), c1 = get('cw_70_30', tier), c2 = get('cw_30_70', tier);
+                    footHolder.textContent = fmtTier(tier) + ' tier — final val loss: dense ' + d0.final_val_loss.toFixed(4) +
+                        ', 70/30 ' + c1.final_val_loss.toFixed(4) + ', 30/70 ' + c2.final_val_loss.toFixed(4) +
+                        ' — ' + d0.history.length + ' checkpoints per run, every 500 steps';
+                }
+
+                TIERS.forEach(function (tier, i) {
+                    var btn = document.createElement('button');
+                    btn.className = 'tab-btn' + (i === 2 ? ' active' : '');
+                    btn.textContent = fmtTier(tier);
+                    btn.setAttribute('role', 'tab');
+                    btn.addEventListener('click', function () {
+                        Array.prototype.forEach.call(tabsHolder.children, function (c) { c.classList.remove('active'); });
+                        btn.classList.add('active');
+                        render(tier);
+                    });
+                    tabsHolder.appendChild(btn);
+                });
+
+                render(TIERS[2]); // default to 3M — the clearest example
+            }
+
+            buildDiagram();
+            buildSetupStats();
+            buildResultsTable();
+            buildFrontierChart();
+            buildWalltimeChart();
+            buildCurveChart();
+        })();
+
+    </script>
 </body>
+
 </html>
