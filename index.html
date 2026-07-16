@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CW-Node Research Roadmap</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #3b82f6;
+            --easy: #22c55e;
+            --med: #eab308;
+            --hard: #f97316;
+            --extreme: #ef4444;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            padding: 40px 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(to right, #60a5fa, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: var(--card-bg);
+            border-radius: 4px;
+        }
+
+        .milestone {
+            position: relative;
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            border-left: 5px solid var(--accent);
+            transition: transform 0.2s ease;
+        }
+
+        .milestone:hover {
+            transform: translateX(10px);
+        }
+
+        .milestone::before {
+            content: '';
+            position: absolute;
+            left: -37px;
+            top: 30px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent);
+            border: 4px solid var(--bg);
+        }
+
+        .m-easy { border-left-color: var(--easy); }
+        .m-easy::before { background: var(--easy); }
+
+        .m-med { border-left-color: var(--med); }
+        .m-med::before { background: var(--med); }
+
+        .m-hard { border-left-color: var(--hard); }
+        .m-hard::before { background: var(--hard); }
+
+        .m-extreme { border-left-color: var(--extreme); }
+        .m-extreme::before { background: var(--extreme); }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge.easy { background: rgba(34, 197, 94, 0.2); color: var(--easy); }
+        .badge.med { background: rgba(234, 179, 8, 0.2); color: var(--med); }
+        .badge.hard { background: rgba(249, 115, 22, 0.2); color: var(--hard); }
+        .badge.extreme { background: rgba(239, 68, 68, 0.2); color: var(--extreme); }
+
+        h2 {
+            margin: 0 0 10px 0;
+            font-size: 1.5rem;
+        }
+
+        .objective {
+            font-style: italic;
+            color: var(--text-muted);
+            margin-bottom: 15px;
+        }
+
+        ul {
+            padding-left: 20px;
+            color: #cbd5e1;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .success {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            border-left: 3px solid #38bdf8;
+        }
+
+        .success strong {
+            color: #38bdf8;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>CW-Node Research Roadmap</h1>
+            <p class="subtitle">From Experimental Lab to Published Research</p>
+        </header>
+
+        <div class="timeline">
+
+            <!-- Milestone 1 -->
+            <div class="milestone m-easy">
+                <span class="badge easy">Phase 1: Foundation (Current)</span>
+                <h2>1. The 10M Parameter Proof of Concept</h2>
+                <div class="objective">Objective: Prove fundamental theoretical viability.</div>
+                <ul>
+                    <li>Successfully complete the 3-day marathon on the 200M token dataset.</li>
+                    <li>Prove definitively that both the 30/70 and 70/30 CW-Node splits achieve a lower validation loss than the mathematically equivalent Dense Baseline at 10M parameters.</li>
+                </ul>
+                <div class="success">
+                    <strong>Success Condition:</strong> The final validation loss curve of the CW-Node stays consistently below the Dense model after 1 full epoch.
+                </div>
+            </div>
+
+            <!-- Milestone 2 -->
+            <div class="milestone m-med">
+                <span class="badge med">Phase 2: Upgrade</span>
+                <h2>2. Tokenization & Context Upgrade</h2>
+                <div class="objective">Objective: Move from "toy model" to "real language model".</div>
+                <ul>
+                    <li>Discard the character-level tokenizer (vocab size 65).</li>
+                    <li>Implement a standard Byte-Pair Encoding (BPE) subword tokenizer (vocab size ~32k - 50k) to drastically improve token efficiency and context window scope.</li>
+                </ul>
+                <div class="success">
+                    <strong>Success Condition:</strong> The model generates coherent English words and philosophical ideas in significantly fewer training steps without needing to learn how to spell.
+                </div>
+            </div>
+
+            <!-- Milestone 3 -->
+            <div class="milestone m-hard">
+                <span class="badge hard">Phase 3: Validation</span>
+                <h2>3. Scaling Law Validation (50M - 100M)</h2>
+                <div class="objective">Objective: Prove the architecture doesn't plateau at small scales.</div>
+                <ul>
+                    <li>Many novel architectures look amazing at 10M parameters but fail when scaled up.</li>
+                    <li>Train a 50M to 100M parameter CW-Node model on a larger dataset (e.g., 2B - 5B tokens).</li>
+                    <li>Accept that training will be slower than a Dense network in PyTorch due to the custom routing, but focus entirely on the parameter efficiency and loss curve.</li>
+                </ul>
+                <div class="success">
+                    <strong>Success Condition:</strong> The validation loss scaling curve remains strictly superior to a 100M parameter Dense Transformer (like GPT-2 Small).
+                </div>
+            </div>
+
+            <!-- Milestone 4 -->
+            <div class="milestone m-extreme">
+                <span class="badge extreme">Phase 4: Publication</span>
+                <h2>4. Research Publication & Open Source</h2>
+                <div class="objective">Objective: Share the mathematical breakthrough with the scientific community.</div>
+                <ul>
+                    <li>Acknowledge that competing with tech giants on bare-metal CUDA optimization is not the goal of a solo researcher.</li>
+                    <li>Write a formal research paper detailing the mathematical foundation of the CW-Node and the empirical proof that it achieves lower loss per parameter than Dense networks.</li>
+                    <li>Open-source the PyTorch codebase and checkpoints.</li>
+                </ul>
+                <div class="success">
+                    <strong>Success Condition:</strong> Present the CW-Node to the open-source AI community (arXiv, GitHub), allowing engineers worldwide to take your mathematical blueprint and write the optimized C++/CUDA kernels for it.
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</body>
+</html>
