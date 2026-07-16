@@ -635,8 +635,8 @@
         <header class="masthead">
             <div class="top-row">
                 <span class="eyebrow">CW-Node Research — Micro Scaling-Law Sweep, V1</span>
-                <a class="repo-link" href="https://github.com/mohamedhossammohamed/cw-node-empirical-research"
-                    target="_blank" rel="noopener">github.com/mohamedhossammohamed/cw-node-empirical-research ↗</a>
+                <a class="repo-link" href="https://github.com/mohamedhossammohamed/cw-node-research"
+                    target="_blank" rel="noopener">github.com/mohamedhossammohamed/cw-node-research ↗</a>
             </div>
             <h1 class="title">The <em>n_embd</em> Confound</h1>
             <p class="subtitle">A twelve-run, parameter-matched sweep of dense and connection-weighted node transformers
@@ -731,7 +731,7 @@
                 <div class="table-wrap">
                     <table>
                         <caption>final_val_loss / final_val_bpc / wall_time_s — read directly from
-                            empirical_results.json</caption>
+                            results.json</caption>
                         <thead>
                             <tr>
                                 <th>Tier</th>
@@ -897,7 +897,7 @@
                             the source corpus (Section 2)</span></div>
                     <div class="f"><b>micro_sweep.py</b> <span class="d">— parameter solver and experiment runner for
                             all 12 configurations</span></div>
-                    <div class="f"><b>empirical_results.json</b> <span class="d">— full per-step training/validation
+                    <div class="f"><b>results.json</b> <span class="d">— full per-step training/validation
                             history for every run — the source for every chart on this page</span></div>
                     <div class="f"><b>plot_scaling_laws.py</b> <span class="d">— the repository's own matplotlib
                             plotting script</span></div>
@@ -907,8 +907,8 @@
                             tokenized dataset and character vocabulary</span></div>
                 </div>
                 <p>To rerun: clone the repository, run <code>micro_sweep.py</code> to regenerate
-                    <code>empirical_results.json</code>, then <code>plot_scaling_laws.py</code> for the static figures.
-                    This page reads only <code>empirical_results.json</code> — regenerating that file and reloading this
+                    <code>results.json</code>, then <code>plot_scaling_laws.py</code> for the static figures.
+                    This page reads only <code>results.json</code> — regenerating that file and reloading this
                     page is sufficient to refresh every number and chart above.</p>
             </section>
 
@@ -936,7 +936,7 @@
 
         <footer>
             <span>CW-Node Micro Scaling-Law Sweep — V1</span>
-            <span>Generated from empirical_results.json, 12/12 runs</span>
+            <span>Generated from results.json, 12/12 runs</span>
         </footer>
 
     </div>

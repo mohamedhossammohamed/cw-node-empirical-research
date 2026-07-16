@@ -14,7 +14,7 @@ Parameter tiers: 500K, 1M, 3M, 5M total params
 Device: MPS (Apple Silicon GPU)
 Dataset: 5M token Lucid Quran subset
 
-Output: dst_lab/research_paper_data/empirical_results.json
+Output: dst_lab/research_paper_data/results.json
 
 Usage:
   KMP_DUPLICATE_LIB_OK=TRUE PYTHONPATH=. .venv/bin/python \
@@ -336,7 +336,7 @@ def main():
 
     data_dir = os.path.dirname(os.path.abspath(__file__))
     # Output path
-    out_path = os.path.join(data_dir, "empirical_results.json")
+    out_path = os.path.join(data_dir, "results.json")
 
     # Build configs
     configs = build_config_grid()

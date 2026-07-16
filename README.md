@@ -67,6 +67,6 @@ If the CW-Node wins under those conditions, it will prove that sub-quadratic int
 - `extract_micro_dataset.py`: Script to extract the 5M token benchmark.
 - `micro_sweep.py`: Core automated experiment runner for all 12 models.
 - `plot_scaling_laws.py`: Visualizes loss curves and generates plots.
-- `empirical_results.json`: Full validation/training loss history for all runs.
+- `results.json`: Full validation/training loss history for all runs.
 - `scaling_law_frontier.png`: Plot graphing parameter count vs. validation loss.
 - `learning_curves_3M.png`: Visual training trajectories of the 3M tier models.

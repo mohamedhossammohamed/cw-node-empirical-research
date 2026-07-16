@@ -1,7 +1,7 @@
 """
 Publication-quality scaling law plots for CW-Node vs Dense comparison.
 
-Reads empirical_results.json and produces:
+Reads results.json and produces:
   1. scaling_law_frontier.png — parameter count vs final validation loss
   2. learning_curves_3M.png — training curves for the 3M tier models
 
@@ -220,12 +220,12 @@ def print_summary(results: List[dict]):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--results", default=None,
-                        help="Path to empirical_results.json")
+                        help="Path to results.json")
     parser.add_argument("--no-floor", action="store_true")
     args = parser.parse_args()
 
     data_dir = os.path.dirname(os.path.abspath(__file__))
-    results_path = args.results or os.path.join(data_dir, "empirical_results.json")
+    results_path = args.results or os.path.join(data_dir, "results.json")
 
     if not os.path.exists(results_path):
         print(f"[ERROR] {results_path} not found. Run micro_sweep.py first.")
