@@ -1,9 +1,9 @@
-# CW-Node Empirical Research: Micro Scaling-Law Sweep (V1)
+# CW-Node Research: Micro Scaling-Law Sweep (V1)
 
-This repository contains the code, baseline datasets, and empirical results for the **CW-Node Architecture**, a novel deep learning architecture that routes information internally as an alternative to standard Dense Feed-Forward Networks (FFNs) in Transformers.
+This repository contains the code, baseline datasets, and results for the **CW-Node Architecture**, a novel deep learning architecture that routes information internally as an alternative to standard Dense Feed-Forward Networks (FFNs) in Transformers.
 
 ## Objective
-The goal of this sweep is to empirically determine if the CW-Node architecture has a parameter-efficiency advantage over traditional Dense baseline Transformers by plotting validation loss against total parameter counts across 4 distinct tiers: **500K, 1M, 3M, and 5M parameters.**
+The goal of this sweep is toly determine if the CW-Node architecture has a parameter-efficiency advantage over traditional Dense baseline Transformers by plotting validation loss against total parameter counts across 4 distinct tiers: **500K, 1M, 3M, and 5M parameters.**
 
 ## Methodology
 - **Dataset:** 5,000,000 token training split (extracted from the Holy Quran dataset, vocab size 113), with a 500,000 token held-out validation set.
@@ -20,7 +20,7 @@ The goal of this sweep is to empirically determine if the CW-Node architecture h
 
 ---
 
-## Empirical Findings
+## Findings
 
 ### Final Validation Loss Summary
 | Architecture | 500K | 1M | 3M | 5M |
